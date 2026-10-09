@@ -52,6 +52,9 @@ def source(root, entry):
     ensure((p / 'SKILL.md').is_file(), f'Missing SKILL.md: {entry["id"]}')
     return p
 
+def installable(entry):
+    return entry['kind'] == 'managed' and entry.get('lifecycle', 'unconfirmed') != 'retired'
+
 def registry(root):
     data = read(root / 'catalog.json')
     ensure(data.get('version') == 1, 'Unsupported registry version')
@@ -63,6 +66,7 @@ def registry(root):
         ensure(name not in ids, f'Duplicate skill ID: {name}')
         ids.add(name)
         ensure(entry.get('kind') in ('managed', 'reference'), f'Unknown kind: {name}')
+        ensure(entry.get('lifecycle', 'unconfirmed') in ('active', 'unconfirmed', 'retired'), f'Unknown lifecycle: {name}')
         for key in ('title', 'summary', 'category', 'origin'):
             ensure(bool(entry.get(key)), f'Missing {key}: {name}')
         if entry['kind'] == 'managed':
@@ -103,6 +107,7 @@ def backup(root, path):
 def install(root, home, name, agent, mode='auto', replace=False, dry_run=False):
     entry = find(root, name)
     ensure(entry['kind'] == 'managed', f'{name} is a reference only; inspect and import it first')
+    ensure(entry.get('lifecycle') != 'retired', f'{name} is retired; retained for reference, not installation')
     src = source(root, entry)
     sha = fingerprint(src)
     dst = target(home, agent, name)
@@ -199,23 +204,28 @@ def validate(root):
                 errors.append(f'{rel}: possible secret; value omitted')
     for label,names in read(root/'profiles.json').items():
         for name in names:
-            if not any(x['id']==name and x['kind']=='managed' for x in entries):errors.append(f'Profile {label}: unavailable {name}')
+            if not any(x['id']==name and installable(x) for x in entries):errors.append(f'Profile {label}: unavailable {name}')
     ensure(not errors, '\n'.join(errors))
-    return {'valid': True, 'managed': sum(x['kind']=='managed' for x in entries), 'references': sum(x['kind']=='reference' for x in entries)}
+    return {'valid': True, 'managed': sum(x['kind']=='managed' for x in entries), 'references': sum(x['kind']=='reference' for x in entries), 'installable': sum(installable(x) for x in entries), 'retired': sum(x.get('lifecycle')=='retired' for x in entries)}
 
 def build(root):
     entries = registry(root); e=html.escape
     cards=[]; rows=[]
     categories={'reporting':'进展汇报','research':'研究分析','documents':'文档处理','collaboration':'多助手协作','development':'开发工具','learning':'学习','management':'技能管理','planning':'任务规划'}
     for v in entries:
-        managed=v['kind']=='managed'; label='可安装' if managed else ('版本有分歧' if v.get('review')=='divergent-copies' else '待整理')
+        managed=v['kind']=='managed'
+        retired=v.get('lifecycle')=='retired'
+        card_kind='retired' if retired else v['kind']
+        badge_kind='retired' if retired else ('managed' if v.get('lifecycle')=='active' else 'reference')
+        label='已弃用' if retired else ('已确认使用' if v.get('lifecycle')=='active' else '使用状态待确认')
+        if not managed and v.get('review')=='divergent-copies': label+=' · 版本分歧'
         summary=v['summary'] if managed else v['summary'][:180]
         href='../'+v['path']+'/SKILL.md' if managed else '../catalog.json'
-        cards.append(f'<article data-kind="{v["kind"]}" data-search="{e((v["id"]+" "+v["title"]+" "+v["category"]+" "+v["summary"]).lower(),quote=True)}"><div class="meta"><span>{e(categories.get(v["category"],v["category"]))}</span><b class="{v["kind"]}">{label}</b></div><h2>{e(v["title"])}</h2><code>{e(v["id"])}</code><p>{e(summary)}</p><a href="{e(href,quote=True)}">'+('读取技能说明' if managed else '查看来源登记')+'</a></article>')
+        cards.append(f'<article data-kind="{card_kind}" data-search="{e((v["id"]+" "+v["title"]+" "+v["category"]+" "+v["summary"]).lower(),quote=True)}"><div class="meta"><span>{e(categories.get(v["category"],v["category"]))}</span><b class="{badge_kind}">{label}</b></div><h2>{e(v["title"])}</h2><code>{e(v["id"])}</code><p>{e(summary)}</p><a href="{e(href,quote=True)}">'+('读取技能说明' if managed else '查看来源登记')+'</a></article>')
         rows.append(f'| `{v["id"]}` | {v["category"]} | {label} | {summary.replace("|","/")} |')
     markup='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Personal Skill Hub</title><style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#20314a;background:#f5f6f8}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:64px auto;padding:0 28px}.eyebrow{font-size:12px;letter-spacing:2px;color:#6c7c90}h1{font-size:40px;letter-spacing:-1px;margin:18px 0}header p{color:#596a7e;line-height:1.8;max-width:720px}.toolbar{display:flex;gap:12px;margin:30px 0 20px}input,select{font:inherit;border:1px solid #d8dfe7;border-radius:9px;padding:13px;background:white;color:inherit}input{flex:1;min-width:0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}article{background:white;border:1px solid #e3e7ed;border-radius:12px;padding:24px;display:flex;flex-direction:column}article[hidden]{display:none}.meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#6c7c90}.meta b{font-weight:500;padding:2px 6px;border-radius:4px}.managed{color:#226947;background:#edf7f0}.reference{color:#746038;background:#f8f2e8}h2{font-size:19px;margin:18px 0 7px}code{font-size:12px;overflow-wrap:anywhere;color:#687a90}article p{font-size:14px;line-height:1.8;flex:1;color:#526278}a{color:#315f99;text-underline-offset:4px;font-size:13px}.count{font-size:12px;color:#748295;margin-bottom:20px}footer{margin:28px 0;font-size:12px;color:#748295;line-height:1.8}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #a5c5ec;outline-offset:3px}@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){main{margin:32px auto;padding:0 18px}.grid{grid-template-columns:1fr}.toolbar{flex-direction:column}h1{font-size:31px}}
-</style><main><header><div class="eyebrow">PERSONAL LIBRARY · 私有技能库</div><h1>找到需要的技能，再按需加载。</h1><p>统一保存自己维护的技能，记录其他技能的来源。安装时选择设备和 agent，阅读时从目录进入说明，再深入需要的细节。</p></header><div class="toolbar"><input id="q" aria-label="搜索技能" placeholder="搜索名称、用途或关键词"><select id="kind" aria-label="安装状态"><option value="managed">可安装</option><option value="">全部技能</option><option value="reference">待整理与版本分歧</option></select></div><div id="count" class="count" aria-live="polite"></div><section class="grid">'''+''.join(cards)+'''</section><footer>这是本地目录页面，没有发布到公开网站。可安装表示源码已纳管，不表示运行依赖已安装或所有功能已在本机验证。<br><a href="../README.md">安装与维护说明</a> · <a href="../catalog.json">Agent 读取索引</a></footer></main><script>
+:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#20314a;background:#f5f6f8}*{box-sizing:border-box}body{margin:0}main{max-width:1120px;margin:64px auto;padding:0 28px}.eyebrow{font-size:12px;letter-spacing:2px;color:#6c7c90}h1{font-size:40px;letter-spacing:-1px;margin:18px 0}header p{color:#596a7e;line-height:1.8;max-width:720px}.toolbar{display:flex;gap:12px;margin:30px 0 20px}input,select{font:inherit;border:1px solid #d8dfe7;border-radius:9px;padding:13px;background:white;color:inherit}input{flex:1;min-width:0}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}article{background:white;border:1px solid #e3e7ed;border-radius:12px;padding:24px;display:flex;flex-direction:column}article[hidden]{display:none}.meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#6c7c90}.meta b{font-weight:500;padding:2px 6px;border-radius:4px}.managed{color:#226947;background:#edf7f0}.retired{color:#68717e;background:#edf0f3}.reference{color:#746038;background:#f8f2e8}h2{font-size:19px;margin:18px 0 7px}code{font-size:12px;overflow-wrap:anywhere;color:#687a90}article p{font-size:14px;line-height:1.8;flex:1;color:#526278}a{color:#315f99;text-underline-offset:4px;font-size:13px}.count{font-size:12px;color:#748295;margin-bottom:20px}footer{margin:28px 0;font-size:12px;color:#748295;line-height:1.8}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #a5c5ec;outline-offset:3px}@media(max-width:850px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){main{margin:32px auto;padding:0 18px}.grid{grid-template-columns:1fr}.toolbar{flex-direction:column}h1{font-size:31px}}
+</style><main><header><div class="eyebrow">PERSONAL LIBRARY · 私有技能库</div><h1>找到需要的技能，再按需加载。</h1><p>统一保存自己维护的技能，记录其他技能的来源。安装时选择设备和 agent，阅读时从目录进入说明，再深入需要的细节。</p></header><div class="toolbar"><input id="q" aria-label="搜索技能" placeholder="搜索名称、用途或关键词"><select id="kind" aria-label="安装状态"><option value="managed">可安装</option><option value="">全部技能</option><option value="reference">仅来源记录</option><option value="retired">已弃用（归档）</option></select></div><div id="count" class="count" aria-live="polite"></div><section class="grid">'''+''.join(cards)+'''</section><footer>这是本地目录页面，没有发布到公开网站。可安装表示保留安装入口，不等于仍在使用。已弃用项仅供追溯，不会随组合或全部安装重新启用。<br><a href="../README.md">安装与维护说明</a> · <a href="../catalog.json">Agent 读取索引</a></footer></main><script>
 const q=document.querySelector('#q'),kind=document.querySelector('#kind'),cards=[...document.querySelectorAll('article')];function filter(){let n=0;for(const c of cards){c.hidden=!(c.dataset.search.includes(q.value.toLowerCase())&&(!kind.value||c.dataset.kind===kind.value));if(!c.hidden)n++}document.querySelector('#count').textContent=`显示 ${n} / ${cards.length} 项技能`}q.addEventListener('input',filter);kind.addEventListener('change',filter);filter();</script></html>'''
     (root/'docs').mkdir(exist_ok=True)
     (root/'docs/index.html').write_text(markup,encoding='utf-8')
@@ -226,7 +236,7 @@ def selected_names(root,args):
     names=list(args.names)
     if args.profile:
         profiles=read(root/'profiles.json');ensure(args.profile in profiles,'Unknown profile');names+=profiles[args.profile]
-    if args.all: names += [v['id'] for v in registry(root) if v['kind']=='managed']
+    if args.all: names += [v['id'] for v in registry(root) if installable(v)]
     ensure(names,'Choose a skill, --profile, or --all')
     return list(dict.fromkeys(names))
 
@@ -242,7 +252,7 @@ def main():
     subs.add_parser('doctor');subs.add_parser('check');subs.add_parser('build')
     a=p.parse_args();root=ROOT;home=a.home.expanduser().resolve()
     if a.command=='list':
-        result=[{'id':x['id'],'title':x['title'],'kind':x['kind'],'category':x['category'],'summary':x['summary'][:180]} for x in registry(root) if a.query.lower() in (x['id']+' '+x['title']+' '+x['category']+' '+x['summary']).lower() and (not a.available or x['kind']=='managed')]
+        result=[{'id':x['id'],'title':x['title'],'kind':x['kind'],'category':x['category'],'lifecycle':x.get('lifecycle','unconfirmed'),'summary':x['summary'][:180]} for x in registry(root) if a.query.lower() in (x['id']+' '+x['title']+' '+x['category']+' '+x['summary']).lower() and (not a.available or installable(x))]
     elif a.command=='show':
         result=find(root,a.name)
         if a.instructions:

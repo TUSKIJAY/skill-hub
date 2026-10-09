@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 spec=importlib.util.spec_from_file_location('hub',Path(__file__).resolve().parents[1]/'scripts/hub.py')
 hub=importlib.util.module_from_spec(spec);spec.loader.exec_module(hub)
@@ -80,5 +81,23 @@ class HubTests(unittest.TestCase):
     def test_internal_symlink_rejected(self):
         (self.src/'outside').symlink_to(self.base)
         with self.assertRaisesRegex(ValueError,'symlinks'):hub.install(self.root,self.home,'example','codex')
+
+    def retire_example(self):
+        d=hub.read(self.root/'catalog.json');d['skills'][0]['lifecycle']='retired';hub.write(self.root/'catalog.json',d)
+    def test_retired_skill_cannot_install(self):
+        self.retire_example()
+        with self.assertRaisesRegex(ValueError,'retired'):hub.install(self.root,self.home,'example','codex')
+        self.assertFalse(self.dst.exists())
+    def test_all_excludes_retired(self):
+        self.retire_example()
+        with self.assertRaisesRegex(ValueError,'Choose a skill'):
+            hub.selected_names(self.root,SimpleNamespace(names=[],profile=None,all=True))
+    def test_profile_rejects_retired(self):
+        self.retire_example()
+        with self.assertRaisesRegex(ValueError,'Profile test: unavailable example'):hub.validate(self.root)
+    def test_retired_skill_remains_discoverable(self):
+        self.retire_example()
+        self.assertEqual(hub.find(self.root,'example')['lifecycle'],'retired')
+        self.assertTrue(self.file.exists())
 
 if __name__=='__main__':unittest.main()

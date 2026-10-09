@@ -10,3 +10,5 @@ Read README.md for usage and catalog.json for discovery. Read only the selected 
 - Installation never executes skill code or installs its dependencies. Dependency requirements belong to each skill.
 - Validate changes with `hub.py check` and `python -m unittest discover -s tests -v`; run `hub.py build` after changing the registry. Use the exact Python launcher above on this Mac.
 - This is a private personal repository. Changing visibility or publishing a hosted catalogue requires an explicit user request.
+
+- Inventory presence is not usage evidence. Honor catalog lifecycle: retired skills are history only, excluded from installation and profiles; unconfirmed does not mean active. Deprecation in the Hub does not automatically uninstall an existing machine copy.

@@ -15,7 +15,9 @@
         "upstream": null,
         "license": "not-yet-recorded"
       },
-      "requirements": []
+      "requirements": [],
+      "lifecycle": "retired",
+      "lifecycle_note": "用户于 2026-10-09 明确已弃用；保留源码追溯，不再安装或加入组合。"
     },
     {
       "id": "role-executor",
@@ -31,7 +33,9 @@
         "upstream": null,
         "license": "not-yet-recorded"
       },
-      "requirements": []
+      "requirements": [],
+      "lifecycle": "retired",
+      "lifecycle_note": "用户于 2026-10-09 明确已弃用；保留源码追溯，不再安装或加入组合。"
     },
     {
       "id": "role-reviewer",
@@ -47,7 +51,9 @@
         "upstream": null,
         "license": "not-yet-recorded"
       },
-      "requirements": []
+      "requirements": [],
+      "lifecycle": "retired",
+      "lifecycle_note": "用户于 2026-10-09 明确已弃用；保留源码追溯，不再安装或加入组合。"
     },
     {
       "id": "md-to-pdf-cn",
@@ -71,7 +77,9 @@
       ],
       "local_changes": [
         "Normalize UI metadata from legacy Chinese encoding to UTF-8 with LF; clarify invocation prompt."
-      ]
+      ],
+      "lifecycle": "retired",
+      "lifecycle_note": "用户于 2026-10-09 明确已弃用；保留源码追溯，不再安装或加入组合。"
     },
     {
       "id": "project-brief",
@@ -89,7 +97,9 @@
       },
       "requirements": [
         "Python 3.10+（本机使用 3.13）"
-      ]
+      ],
+      "lifecycle": "active",
+      "lifecycle_note": "本会话创建、安装并验证；已确认使用。"
     },
     {
       "id": "research-report-builder",
@@ -105,7 +115,9 @@
         "upstream": null,
         "license": "not-yet-recorded"
       },
-      "requirements": []
+      "requirements": [],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "agent-cli-bridge",
@@ -135,7 +147,9 @@
           "location": "~/.claude/skills/agent-cli-bridge",
           "fingerprint": "a585a7ad2c3b0262096e15aed7917b292427a56338c89925ee5017c7fa285258"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "multi-agent-discussion-harness",
@@ -155,7 +169,9 @@
           "location": "~/.codex/skills/multi-agent-discussion-harness",
           "fingerprint": "bf2a98e3ebfe12969bb4338b7bba90a9da3cf767c3810b3960b5727bc384c10c"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "orchestration",
@@ -180,7 +196,9 @@
           "location": "~/.claude/skills/orchestration",
           "fingerprint": "7f2e22b99ddaca1e5d714c9e3d7265e41cd45c4934b687087de9f3b1cc480c52"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "seedmux-team",
@@ -205,7 +223,9 @@
           "location": "~/.claude/skills/seedmux-team",
           "fingerprint": "46f0d3d4c45ef7e37793b84fa5f49baf8dde6d251e8a5fa1ab7d51f706992d9e"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "acm-md",
@@ -225,7 +245,9 @@
           "location": "~/.codex/skills/acm-md",
           "fingerprint": "073083169a7bb3f29a46f32180e8250b1823524c31f3edf0b52bd76f02605f43"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "orca-cli",
@@ -250,7 +272,9 @@
           "location": "~/.claude/skills/orca-cli",
           "fingerprint": "d77fbd2d205d1af1373f6624ebee54ece58e8e1094ea91f54b136367be62a263"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "playwright",
@@ -270,7 +294,9 @@
           "location": "~/.codex/skills/playwright",
           "fingerprint": "2b1315e0e6c865783aaf7fb8d5455920a4bdc4e46511ed2ad78584e3d553cbf0"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "project-harness-engineer",
@@ -295,7 +321,9 @@
           "location": "~/.claude/skills/project-harness-engineer",
           "fingerprint": "849bb4ced88a94ae736fd8077d0f3f2d4d2e576ba3db092aad70cc75898513b5"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "typesafe-ai",
@@ -315,7 +343,9 @@
           "location": "~/.agents/skills/typesafe-ai",
           "fingerprint": "07d76735eed4b7e88e1d32c592ae6642f165bb9c004f337f3f90edc70ac7fbb9"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "agent-friendly-md-workflow",
@@ -335,7 +365,9 @@
           "location": "~/.codex/skills/agent-friendly-md-workflow",
           "fingerprint": "d66d096829ee795e3999de8308e0c9c7d53ee9cda2fe74d22c8f8e63acdd5c5c"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "markdown-to-pdf-book",
@@ -355,7 +387,9 @@
           "location": "~/.codex/skills/markdown-to-pdf-book",
           "fingerprint": "55060698ff5fdf58cfd13e296b2acad51a8d97142b2638bf235f4f6b24556c6f"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "pdf",
@@ -375,7 +409,9 @@
           "location": "~/.codex/skills/pdf",
           "fingerprint": "75605de0c36f3ca8ef3de2631a54233721285c5aa3c6f08ddd3380fc4fe9a330"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "codebase-to-course",
@@ -400,7 +436,9 @@
           "location": "~/.claude/skills/codebase-to-course",
           "fingerprint": "6e3a80cd8d2f1a9ef039f805c3d562d202a80b9af246786eeed5139577a94ef5"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "find-skills",
@@ -420,7 +458,9 @@
           "location": "~/.agents/skills/find-skills",
           "fingerprint": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "task-decomposer",
@@ -440,7 +480,9 @@
           "location": "~/.codex/skills/task-decomposer",
           "fingerprint": "709da7902e4308f7400cb91d359203cf7ea9b58ac8977e6cef86baadf1548d6c"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "kline-extract",
@@ -460,7 +502,9 @@
           "location": "~/.codex/skills/kline-extract",
           "fingerprint": "93033fdedcd228d22e7b2650a19bd3e416cc2ed0c9fe5f5c2e19fd8700130a05"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
       "id": "target-research-workflow",
@@ -480,7 +524,9 @@
           "location": "~/.codex/skills/target-research-workflow",
           "fingerprint": "aba41151ab87f88000e81dcfad0934d67ca5634db27756d5ff0d57ea12256e40"
         }
-      ]
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     }
   ]
 }

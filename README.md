@@ -4,7 +4,9 @@
 
 [浏览技能目录](docs/catalog.md) · [本地可搜索页面](docs/index.html) · [Agent 索引](catalog.json)
 
-当前首批纳管 6 项：项目简报、研究报告、中文 PDF，以及起草 / 执行 / 评审三个协作角色。另有 17 项只登记了来源；其中 `agent-cli-bridge` 和 `project-harness-engineer` 的本机副本内容有分歧，未自动合并或替换。发现清单是 2026-10-09 的快照，不是持续扫描服务；官方插件缓存不在此次迁移范围内。
+当前登记 23 项：2 项保留安装入口，4 项已弃用并保留历史源码，17 项仅登记来源。用户已确认弃用 `role-drafter`、`role-executor`、`role-reviewer` 和 `md-to-pdf-cn`；已从默认列表、安装组合与 `--all` 中排除，按名称安装也会拒绝。
+
+`project-brief` 已确认在用；其余未弃用条目的使用状态仍待确认，不能从“安装目录里有文件”推断活跃使用。`agent-cli-bridge` 和 `project-harness-engineer` 的本机副本有分歧，未自动合并。盘点是 2026-10-09 的快照，官方插件缓存不在迁移范围内。标为弃用不会自动删除机器上的旧安装。
 
 ## 新设备安装
 
@@ -32,7 +34,6 @@ python scripts/hub.py install project-brief --agent codex --agent claude
 
 # 可选组合；组合中的第三方运行依赖不会随技能安装
 python scripts/hub.py install --profile desktop --agent codex
-python scripts/hub.py install --profile collaboration --agent claude
 ```
 
 macOS / Linux 默认用目录链接，Windows 默认复制，无需开启开发者模式。`--mode copy` 可显式使用独立副本。已在 macOS 测试链接和复制两种安装行为；Windows 原生环境尚未实测。
@@ -60,7 +61,7 @@ python scripts/hub.py uninstall project-brief --agent codex --restore-previous
 
 1. 决定是纳管源码，还是只记录来源。第三方技能先保留原作者、仓库和许可证信息；来源不明的私有快照不当成原创。
 2. 纳管时把必要的 `SKILL.md`、scripts、references、assets 等放到 `skills/<id>/`。不要复制项目数据、证据、账号配置、运行日志或缓存。只登记来源则不复制源码。
-3. 在 `catalog.json` 添加条目；`kind: managed` 需含 `path` 和 `requirements`，`kind: reference` 可记录上游和待整理原因。已有条目可作结构示例。设备组合在 `profiles.json` 中维护。
+3. 在 `catalog.json` 添加条目；`kind: managed` 需含 `path` 和 `requirements`，`kind: reference` 可记录上游和待整理原因。`lifecycle` 区分 `active`（已确认使用）、`unconfirmed`（待确认）、`retired`（已弃用）。新盘点条目默认待确认；弃用项禁止安装和进入组合。已有条目可作结构示例。设备组合在 `profiles.json` 中维护。
 4. 验证并生成目录，检查差异后再提交：
 
 ```sh

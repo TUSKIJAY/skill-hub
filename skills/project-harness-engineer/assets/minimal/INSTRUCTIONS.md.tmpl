@@ -1,0 +1,56 @@
+# {{PROJECT_NAME}}
+
+## Objective
+
+{{OBJECTIVE}}
+
+## Project Type
+
+{{PROJECT_TYPE}}
+
+## Harness Profile
+
+`{{PROFILE}}`
+
+## Directory Structure
+
+- `AGENTS.md` — agent 入口地图、任务分级与硬规则。
+- `INSTRUCTIONS.md` — 本项目稳定章程与沉淀的长期约束。
+- `PROGRESS.md` — 项目状态板（只记录已经为真的最新事实与证据）。
+- `HANDOFF.md` — 交接包（固定字段、整体覆盖重写、开工即过期）。
+- `.harness/history/log.jsonl` — 追加式历史账本，只能经 `scripts/harness_log.py` 读写。
+- `src/` 或项目既有源码目录 — 核心实现；以实际仓库结构为准。
+- `tests/` 或项目既有测试目录 — 自动化验证；以实际仓库结构为准。
+- `docs/` — 详细文档、计划、决策与长篇证据。
+- `scripts/` — 可重复运行的本地工具。
+
+## AI Behavior Rules
+
+1. 先读入口与当前状态，再修改文件。
+2. 按 `AGENTS.md` 的任务分级选择流程：小任务直接执行，不套用完整生命周期。
+3. 以目标仓库事实为准，不从模板虚构架构、历史或完成状态。
+4. 修改范围保持窄；保护用户已有和无关改动。
+5. 状态职责分离：`PROGRESS.md` 只写事实与证据，`HANDOFF.md` 只写交接意图并整体重写；冲突优先级为 git/测试结果 > `PROGRESS.md` > `HANDOFF.md` > 聊天记忆。
+6. 历史进账本不进启动文件：检查点、验证、交接、决策事件经 `scripts/harness_log.py append` 记录；回溯历史只用其 `query`，按 `AGENTS.md` 的触发条件。
+7. 项目存在更严格的本地规则时，以更严格规则为准。
+
+## Verification Commands
+
+以下命令由项目结构推断或由维护者显式提供；首次执行前应与 CI/README 核对：
+
+{{VERIFICATION_COMMANDS}}
+
+Harness 结构检查：
+
+- `python scripts/check-project-harness.py --root . --profile auto`
+
+## Learned Constraints
+
+跨会话有效的教训与约束沉淀于此：一行一条，带日期与来源（账本 seq 或 commit）。由会话收尾的记忆沉淀流程追加；条目被证伪或过时后必须删除或修正，不保留失效教训。
+
+- 暂无；首条由首次沉淀写入。
+
+## Project-Specific Constraints
+
+- 在首次接管时从现有 README、CI、架构文档和用户要求补充本节。
+- 不得把 secrets、凭证、运行时 token 或未脱敏生产数据写入状态文档或账本。

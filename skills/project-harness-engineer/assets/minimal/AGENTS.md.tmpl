@@ -1,0 +1,67 @@
+# {{PROJECT_NAME}}
+
+## Startup Contract
+
+1. 完整读取 `AGENTS.md`、`INSTRUCTIONS.md`、`PROGRESS.md`。
+2. 读 `HANDOFF.md` 一次作为接手指令；开工后它即视为过期，不再回读。若其 `progress_ref` 与 `PROGRESS.md` 明显脱节，以 `PROGRESS.md` 和仓库现实为准，先修正状态再动手。
+3. 若为 Git 仓库，运行 `git status --short --branch`，识别当前分支及用户已有改动。
+4. 从当前状态、已批准计划和用户请求确定本次范围、权限边界与下一闸门。
+5. 只按入口地图读取任务所需文档；不读 `.harness/history/`（账本检索触发条件见 State Discipline），不把历史库加载进启动上下文。
+6. 在修改前确认项目原生验证路径。若基线已失败，先记录现状和影响，不得把既有失败误报为本次回归。
+
+## Task Triage
+
+动手前先为本次工作定级，按级别选流程；不要给小任务套大流程：
+
+- **直接执行（默认）**：小型、低风险、可回滚的改动（bug 修复、文档、测试补充、小功能）。用户的明确请求即是该范围的批准；直接实现并验证，结束时同步状态文件。不需要计划或评审文件，也不要求二次确认。
+- **轻量计划**：涉及多文件或需分步验证的中等任务。在 `PROGRESS.md` 里内联写出步骤即可开始执行；不需要单独的计划或评审文件。
+- **治理生命周期**：仅当满足任一条件才升级：跨会话的大型改造、不可逆或安全敏感操作、影响范围无法预估、或用户明确要求正式计划。若本项目安装了 governed profile，按 `docs/exec-plans/roadmap.md` 执行；否则与用户确认流程。
+
+## Project Map
+
+- `INSTRUCTIONS.md` — 稳定项目章程、验证命令、Learned Constraints（沉淀的长期教训）。
+- `PROGRESS.md` — 项目状态板：只记录已经为真的事实与证据（Facts、In Progress、Blocked、Backlog、Open Unknowns、Verified Baseline）。
+- `HANDOFF.md` — 交接包：固定字段，整体覆盖重写；只回答"下一个会话第一步做什么"。
+- `.harness/history/log.jsonl` — 追加式历史账本；只能经 `scripts/harness_log.py` 读写，禁止直接编辑或整卷读取。
+- `.harness/config.json` — harness profile 与验证命令的机器可读配置。
+- `scripts/check-project-harness.py` — 结构与状态文件 lint（含 HANDOFF 字段与 PROGRESS 段落检查）。
+- `docs/` — 详细项目文档；使用其索引按需读取。
+
+## State Discipline
+
+- 冲突优先级：git/测试结果 > `PROGRESS.md` > `HANDOFF.md` > 聊天记忆。低优先级来源与高优先级冲突时，先按高优先级修正低优先级文件，再继续任务。
+- `PROGRESS.md` 只写已经为真的事实和证据；会话意图（下一步做什么）只写 `HANDOFF.md`。
+- 状态文件写结论和证据，不写推理过程；推理随会话丢弃。
+- 账本写入：在检查点/里程碑、验证通过、交接、决策事件或事故时，运行 `python scripts/harness_log.py append --type <milestone|verification|handoff|decision|incident> --summary "..." --evidence "..."` 追加一条。决策事件指一行能说清的「某时决定了 X」；governed 档位下，会约束后续 phase 或后续计划的取舍还要在 `docs/decisions/index.md` 登记一行，正文位置按该 index 的规则（计划内产生时写进该计划的 `## Decisions` 段），账本条目用 `--refs` 回链该 index。
+- 账本读取仅限四个触发条件：需要历史决策依据（"当时为什么选 X"）、疑似重复踩坑、用户主动问历史、状态文件与仓库现实冲突需溯源。命中时用 `python scripts/harness_log.py query --grep <关键词>` 检索，只消费查询结果；governed 档位下，「需要历史决策依据」这一条先查 `docs/decisions/index.md`——那里是约束力的权威——再按需查账本取事件经过。
+- 记忆沉淀：会话收尾时自问"本次是否有跨会话有效的教训或约束"；有则以一行一条写入 `INSTRUCTIONS.md` 的 Learned Constraints 段（带日期与来源），并追加一条 `decision` 账本条目。
+- `PROGRESS.md` 超预算时（`python scripts/check-startup-doc-budget.py --root .` 报告 `archive_required=true`），把 Completed 最老条目经 `harness_log.py append --type milestone` 迁入账本后删除，并更新 Ledger Pointers 索引。
+
+## Hard Rules
+
+- 保留所有无关和用户已有改动；不得为方便而覆盖、回滚、移动或删除它们。
+- 只修改当前请求与已批准范围内的文件。遇到范围歧义时，选择保守、可回滚的解释继续执行并把该假设记录进状态文件；仅当涉及破坏性/不可逆操作或明显超出请求范围时才暂停请求方向。
+- 不得仅凭聊天记录宣称状态；重要状态、证据、阻塞和下一步必须落入项目文件。
+- 在 Git 项目中，完成的 workspace 改动必须先通过适当验证，再只暂存预期文件并按仓库规则提交。工作树存在无关脏改动不构成阻塞：绕开它们、只提交预期路径；仅当预期文件本身冲突时才记录阻塞。
+- 状态文件按检查点更新，不在每个微小步骤前后反复改写：在 phase/里程碑边界，先把结果写入 `PROGRESS.md` 并追加账本条目，再进入下一 phase；阻塞发生时和会话结束前同步状态文件，使下一会话无需重建聊天上下文即可恢复。
+- 结构验证只证明 harness 可发现；完成仍需项目原生测试、构建或人工验收证据。
+- 项目专属安全、发布、数据或操作规则写入本仓库的权威文档，不写入全局 Skill。
+
+## Verification
+
+项目原生验证命令由 `INSTRUCTIONS.md` 与 `.harness/config.json` 记录。Harness 自检：
+
+```powershell
+python scripts/check-project-harness.py --root . --profile auto
+python scripts/check-startup-doc-budget.py --root .
+```
+
+## Definition of Done
+
+一项工作仅在以下条件全部满足时才能标记完成：
+
+- 目标行为或交付物已实现；
+- 相关验证实际运行并记录证据；
+- `PROGRESS.md` 反映当前真相，`HANDOFF.md` 已整体重写为最新交接包，账本已追加对应条目；
+- 未混入无关改动；
+- Git 项目按本仓库提交策略形成可恢复的干净边界。

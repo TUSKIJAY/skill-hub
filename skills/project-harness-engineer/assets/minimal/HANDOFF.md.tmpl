@@ -1,0 +1,12 @@
+# Handoff
+
+本文件是交接包，只回答"下一个会话第一步做什么"。每次交接**整体覆盖重写**，不追加历史，不复制 `PROGRESS.md` 的内容。启动时读一次，开工后即视为过期，不再回读；与 `PROGRESS.md` 或仓库现实冲突时，以后者为准（先修状态，再干活）。
+
+- progress_ref: {{DATE}}（`PROGRESS.md` 本次更新日期；Git 项目补 commit 短哈希）
+- from: harness-install
+- just_finished: `{{PROFILE}}` harness 初始化完成；尚未做首次接管校准。
+- current_task: 首次接管校准——核对项目目标、已有成果、原生验证命令与阻塞。
+- first_action: 读 `PROGRESS.md` 的 Backlog，然后运行 `python scripts/check-project-harness.py --root . --profile auto`。
+- do_not: 不把模板占位内容当作项目事实；不读 `.harness/history/`（除非命中 `AGENTS.md` 的检索触发条件）。
+- open_questions: 原生验证命令与 CI 是否一致（待核对）。
+- verify: `python scripts/check-project-harness.py --root . --profile auto`

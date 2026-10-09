@@ -1,0 +1,30 @@
+<!-- 本模板只用于三种情形：取舍跨多个计划、在计划之外产生、要推翻一条已 Accepted 的旧决策。其余情形写进计划的 `## Decisions` 段并在 `index.md` 登记一行即可，不要在此重复一份正文。 -->
+
+# Decision <NNNN> — <Title>
+
+- Status: Proposed | Accepted | Superseded | Void
+- Date: YYYY-MM-DD
+- Scope: <受本决策约束的计划、文件或后续 phase>
+- Supersedes: <被本决策取代的条目，或 none>
+
+## Context
+
+- 触发本决策的事实与证据（附路径、账本 seq 或 commit）：
+- 相关的既有约束（PRD 段落、SPEC 条目、旧决策）：
+
+## Decision
+
+- 结论一句话：
+
+## Consequences
+
+- 本决策带来的约束与代价：
+- 需要同步更新的既有产物：
+
+## Alternatives Considered
+
+- 否掉的备选与理由：
+
+## Activation Boundary
+
+Proposed 状态只供评审，不授权实施。转为 Accepted 时必须写明它约束哪些计划、文件或后续 phase；认可本身不改动任何代码，实施授权仍只来自位于 `../exec-plans/active/` 的计划或用户的直接请求。写入本文件后在 `index.md` 登记一行，并追加账本条目回链：`python scripts/harness_log.py append --type decision --summary "..." --refs docs/decisions/<NNNN>-<slug>.md`。

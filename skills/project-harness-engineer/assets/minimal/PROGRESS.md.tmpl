@@ -1,0 +1,60 @@
+# Progress
+
+本文件是项目状态板：只记录**已经为真**的最新事实与证据。会话意图（下一步做什么）只写 `HANDOFF.md`；历史操作在账本 `.harness/history/log.jsonl`，经 `python scripts/harness_log.py query` 按需检索，禁止整卷读取。冲突优先级：git/测试结果 > 本文件 > `HANDOFF.md` > 聊天记忆。
+
+## Facts
+
+当前为真的项目级事实（架构选型、关键配置、环境约束）。首次接管校准时以仓库证据填充；不从模板虚构。
+
+- {{DATE}}：已安装 `{{PROFILE}}` harness 基础结构；未重写项目历史，不宣称既有功能已完成。
+
+## In Progress
+
+进行中的多步工作只记录"已完成到哪一步"（事实），不写下一步意图。
+
+- 无。
+
+## Blocked
+
+每条阻塞必须带证据和解除条件。
+
+- 无。
+
+## Backlog
+
+项目级已知未开始的工作项。"存在这些活"是事实；执行顺序与下一步指令在 `HANDOFF.md`。
+
+- [ ] 首次接管校准：核对项目目标、已有成果、原生验证命令、阻塞。
+- [ ] 运行项目原生验证并把结果记入 Verified Baseline。
+
+## Open Unknowns
+
+- 原生验证命令与 CI 是否一致（待核对）。
+
+## Verified Baseline
+
+| Command | Last result | Date |
+| --- | --- | --- |
+| `python scripts/check-project-harness.py --root . --profile auto` | pending | — |
+
+## Completed (Rolling Window)
+
+只保留最近的已完成条目。`python scripts/check-startup-doc-budget.py --root .` 报告 `archive_required=true` 时，把最老条目经 `python scripts/harness_log.py append --type milestone --summary "..." --evidence "..."` 迁入账本后从本文件删除，并更新 Ledger Pointers。
+
+- [x] {{DATE}} — 安装缺失的 `{{PROFILE}}` harness 文件；未覆盖已有文件。
+
+## Ledger Pointers
+
+| Migrated range | Where |
+| --- | --- |
+| 无 | `python scripts/harness_log.py query --type milestone` |
+
+## Navigation
+
+| Need | Location |
+| --- | --- |
+| Stable rules + learned constraints | `INSTRUCTIONS.md` |
+| Session transfer packet | `HANDOFF.md` |
+| History ledger (query only) | `python scripts/harness_log.py query --grep <kw>` |
+| Harness configuration | `.harness/config.json` |
+| Detailed project docs | `docs/` |

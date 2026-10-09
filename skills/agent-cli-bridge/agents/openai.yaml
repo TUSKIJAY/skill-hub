@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent CLI Bridge"
+  short_description: "Delegate tasks to local agent CLIs (agy/anti, grok, kimi, codex, claude)"
+  default_prompt: "Use $agent-cli-bridge to call a local agent CLI (agy, grok, kimi, codex or claude) for a file or image analysis task or a second opinion."

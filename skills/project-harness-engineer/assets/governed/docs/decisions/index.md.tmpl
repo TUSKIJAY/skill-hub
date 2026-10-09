@@ -1,0 +1,57 @@
+# Decision Index
+
+本索引是 `{{PROJECT_NAME}}` 决策约束力的权威。只有 Status 为 Accepted 的条目具有约束力；Proposed 条目只供评审，不能激活计划或授权实施。决策正文可以在计划里，也可以是本目录下的独立文件，但约束力一律以本索引为准。
+
+| Decision | Status | Scope | Supersedes | Location |
+| --- | --- | --- | --- | --- |
+| None | — | — | — | — |
+
+Supersedes 列记取代关系，双向都写在这一列：取代方写 `supersedes <被取代条目>`，被取代方写 `superseded by <取代它的条目>`。
+
+## Status 取值
+
+| Status | 含义 |
+| --- | --- |
+| `Proposed` | 已写出，等待决策者认可；无约束力 |
+| `Accepted` | 已认可，对 Scope 列所列范围有约束力 |
+| `Superseded` | 已被后续决策取代；Supersedes 列指向取代它的条目 |
+| `Void` | 承载它的计划被拒绝或终止，该取舍从未生效 |
+
+Accepted 与计划的 activation 可在用户的同一次答复中一并授予，不追加确认轮次。
+
+## 登记条件
+
+- 起草 proposed 计划时，若计划含会约束后续 phase 或后续计划的方向性取舍，写进计划的 `## Decisions` 段，并在本索引登记一行。登记是硬性要求。
+- active 计划执行期在 phase 边界新产生的约束性取舍，在该 phase 边界补登记一行；其 Accepted 可与该 phase 的验收在用户的同一次答复中给出，不单开确认轮次。
+- 只影响当前 phase 实现细节的选择不登记；它属于计划的 Work 项或验证证据。
+- 决策写入后追加一条账本条目回链：`python scripts/harness_log.py append --type decision --summary "..." --refs docs/decisions/index.md`。
+
+## 与 Accepted decision 冲突时
+
+评审把「与本索引中 Accepted 条目冲突」判为 blocking (P1)。解除条件二选一：
+
+- 改计划使其符合该决策——属评审修订范围内的普通工作，起草者可直接做；
+- 按下节情形 3 推翻该决策——属改动约束本身，须决策者认可，该认可可与计划批准在同一次答复中给出。
+
+解除后在同一轮评审内恢复通过，不追加评审轮次。
+
+## 独立文件的三种情形
+
+只有下列三种情形才在本目录创建独立决策文件（格式见 `decision-template.md`）：
+
+1. 该取舍跨多个计划；
+2. 该取舍在计划之外产生（例如事故处置、外部约束变更）；
+3. 该取舍要推翻一条已 Accepted 的旧决策。
+
+其余情形只写计划段落加本索引一行，不再重复一份正文。
+
+## Location 格式与解析
+
+- 计划内决策：`<plan-slug>#D<n>`。按 slug 依次在 `../exec-plans/proposed/`、`../exec-plans/active/`、`../exec-plans/completed/` 解析；计划在这三个目录间移动时本索引不需要改动。
+- 独立文件：`decisions/<NNNN>-<slug>.md`，NNNN 为四位递增序号，新项目从 0001 起。
+
+## 生命周期同步
+
+- 承载决策的计划被拒绝或终止：该决策 Status 改为 `Void`。
+- 承载决策的计划被取代：该决策 Status 改为 `Superseded`，并在 Supersedes 列写 `superseded by <取代它的条目>`。
+- 计划已进入 completed 之后还要改动其中某条决策：不改动已归档的计划正文，改为按上节第 3 种情形创建独立文件，并在 Supersedes 列指向被它取代的旧条目。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Harness Engineer"
+  short_description: "Audit and install governed project harnesses"
+  default_prompt: "Use $project-harness-engineer to audit this repository and propose a safe governed harness retrofit."

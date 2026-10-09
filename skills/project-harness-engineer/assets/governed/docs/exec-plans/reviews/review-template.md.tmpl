@@ -1,0 +1,35 @@
+# Review <NNN> — <Plan Title>
+
+- Review target: `<exact plan path and revision>`
+- Review type: design / implementation / closeout
+- Verdict: approve / revise / reject / accept (revise only while a blocking finding remains open; should-fix and suggestion findings never constitute revise, alone or by accumulation)
+- Confidence: low / medium / high
+
+## Scope Checked
+
+- Plan objective and non-goals
+- Current repository evidence
+- Phase gates and verification
+- Authority and lifecycle wording
+- Conflicts with Accepted decisions in `docs/decisions/index.md`
+- Unrelated-change protection
+
+## Findings
+
+Severity: blocking (P1) = any of: goal unreachable, safety or compatibility broken, a key acceptance undecidable, major irreversible rework, conflicts with an Accepted decision in `docs/decisions/index.md`. should-fix (P2) = goes to the implementation checklist; does not block activation. suggestion (P3) = record only. Judge severity by these definitions, not by the reviewer's label; relabel when they disagree.
+
+Location: section or item ID plus function or symbol name. Line numbers may be attached but are not the sole locator.
+
+| Severity | Location | Finding | Acceptance shape |
+| --- | --- | --- | --- |
+| None | — | — | — |
+
+## Verdict Rationale
+
+State what was independently verified and what remains unverified. This review does not activate or execute the plan.
+
+## Review Discipline
+
+- Check goals, boundaries, key assumptions and acceptance against this template. Output evidence-backed blocking findings and non-blocking suggestions; do not enumerate every nit or rewrite the plan.
+- Each finding states the problem and a decidable acceptance shape, not prescriptive wording that can be copied verbatim into the plan. Before adopting a finding, verify feasibility and observability in the repository. A finding closes when the problem is gone, not when the prescription was copied.
+- One revision is reviewed once. A re-review checks only whether previous blocking findings are closed and whether the revision introduced new ones; it does not rescan everything.

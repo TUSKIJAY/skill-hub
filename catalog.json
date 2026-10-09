@@ -44,13 +44,15 @@
       "title": "调用其他 AI 助手",
       "summary": "通过本机命令行调用 Claude、Codex 等助手，获取结果或第二意见。",
       "category": "collaboration",
-      "kind": "reference",
+      "kind": "managed",
       "origin": {
-        "kind": "installed-inventory",
+        "kind": "local-snapshot",
+        "location": "~/.claude/skills/agent-cli-bridge",
         "captured_at": "2026-10-09",
-        "upstream": null
+        "upstream": null,
+        "license": "not-yet-recorded"
       },
-      "review": "divergent-copies",
+      "review": "reconciled-for-hub",
       "observed_locations": [
         {
           "agent": "codex",
@@ -69,7 +71,14 @@
         }
       ],
       "lifecycle": "unconfirmed",
-      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
+      "lifecycle_note": "用户于 2026-10-09 确认收录；使用频率未核实，设备安装仍由用户按需选择。",
+      "path": "skills/agent-cli-bridge",
+      "review_note": "对比三份副本；保留 Claude 脚本的 stdin 关闭修复，补入 Codex UI 元数据，去掉备份文件，临时文件名改为可移植模板。未替换设备上的现有安装。",
+      "requirements": [
+        "Bash 3.2+ 与 POSIX 命令；Windows 需兼容 Bash 环境（未实测）",
+        "所需 Agent CLI 单独安装并登录",
+        "agent_proof.sh 额外需要 uuidgen"
+      ]
     },
     {
       "id": "orchestration",
@@ -201,13 +210,15 @@
       "title": "项目协作规范",
       "summary": "维护项目启动说明、进展交接、验证入口和 agent 工作约定。",
       "category": "development",
-      "kind": "reference",
+      "kind": "managed",
       "origin": {
-        "kind": "installed-inventory",
+        "kind": "local-snapshot",
+        "location": "~/.claude/skills/project-harness-engineer",
         "captured_at": "2026-10-09",
-        "upstream": null
+        "upstream": null,
+        "license": "not-yet-recorded"
       },
-      "review": "divergent-copies",
+      "review": "reconciled-for-hub",
       "observed_locations": [
         {
           "agent": "codex",
@@ -221,7 +232,13 @@
         }
       ],
       "lifecycle": "unconfirmed",
-      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
+      "lifecycle_note": "用户于 2026-10-09 确认收录；使用频率未核实，设备安装仍由用户按需选择。",
+      "path": "skills/project-harness-engineer",
+      "review_note": "对比 Codex 和 Claude 副本；采用包含配套事实状态、交接字段、历史账本及可选 PRD/SPEC 模板和验证器的 Claude 完整版本；Codex 无独有文件。未迁移现有项目或设备安装。",
+      "requirements": [
+        "Python 3.10+ 标准库（本机验证使用 3.13）",
+        "Git（检查目标仓库状态）"
+      ]
     },
     {
       "id": "typesafe-ai",

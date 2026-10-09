@@ -1,0 +1,54 @@
+# Exec Plans Roadmap
+
+本文件是 `{{PROJECT_NAME}}` 实施计划及评审的生命周期入口。
+
+## Task Triage First
+
+不是所有工作都需要正式计划。先按 `AGENTS.md` 的任务分级判断：
+
+- 直接执行与轻量计划级别的任务不进入本目录；用户的明确请求即是该范围的批准，直接实现并验证。
+- 只有跨会话的大型改造、不可逆或安全敏感操作、影响范围无法预估、或用户明确要求正式计划的工作才使用下述生命周期。
+- 把小任务错误升级进本生命周期与把大任务绕过本生命周期同样是违规。
+
+## Lifecycle
+
+1. 改进想法可在用户启用记录模式后进入 `docs/optimization/`。
+2. 用户明确要求转化的范围起草为 `proposed/` 计划；已启用 PRD 层时，可引用标记 Accepted 的 PRD 作为 Source evidence。计划含会约束后续 phase 或后续计划的取舍时，写进计划的 `## Decisions` 段并在 `docs/decisions/index.md` 登记一行。
+3. proposed 计划需要 review；review 确认与 activation 可在用户的同一次答复中一并授予——用户说「批准并执行」即同时完成两者，不得为流程追加额外确认轮次。
+4. 评审默认最多两轮；项目可按风险改写预算，但须注明适用范围与退出条件。到限仍有未闭合的阻断项时停止修订循环：属「计划写得太细」的，按 plan-template 的 Depth ceiling 回退到行为级条目；属「方向不确定」的，在已有授权内做受限实验取得事实后再重写，或提交决策者裁定。停止不等于通过，不得为取得批准自行续轮。
+5. 经用户批准后，计划移动到 `active/` 并可立即开始实施，无需再次请示。
+6. active 计划按 phase 执行；小计划可在计划内注明后合并 phase。
+7. 在 phase 边界和会话结束前记录验证证据、同步 `PROGRESS.md` 与 `HANDOFF.md` 及受影响的 SPEC 条目（已启用 PRD/SPEC 层时同步 `docs/specs/`；未启用为 no-op），并按仓库规则形成 scoped commit。
+8. 全部范围完成、验证和收尾后，计划移动到 `completed/`。
+
+`proposed`、`active`、`completed` 与 `review` 是不同状态；状态转换需要用户认可，但用户的一次明确认可可以同时覆盖多个转换。
+
+## Directory Rules
+
+- `proposed/`：草案计划，等待用户批准。
+- `active/`：已获用户批准、当前可执行的计划。
+- `completed/`：已完成、终止、拒绝、被取代或归档的计划。计划被拒绝或终止时，把 `docs/decisions/index.md` 中 Location 指向它的决策 Status 改为 Void；计划被取代时改为 Superseded 并指向取代它的决策。
+- `reviews/`：按计划 slug 保存评审和实施验收；仅在需要独立评审时创建。
+- `plan-template.md`：起草模板，不属于任何计划状态。
+
+## Execution Discipline
+
+- phase 完成与否以验证证据为准；进入下一 phase 前先把结果写入 `PROGRESS.md`，不在每个微小步骤间反复改写状态文件。
+- 计划标注了闸门的 phase 边界必须守闸门；不得静默合并 phase，合并必须在计划中注明。
+- 发现无关脏改动时保护它们并继续本范围工作，只提交预期路径；仅当预期文件本身冲突或操作不可逆时才记录阻塞并请求方向。
+- 遇到范围歧义时选择保守、可回滚的解释继续执行并记录假设；不要默认暂停等待。
+- 优化记录本身不授权实施；转化仍需用户明确请求。
+- 计划正文不承载字段级或元素级的机器契约。proposed 期某条判据必须写到字段或元素级才能说清，说明它依赖的实现或验证命令尚不存在，应推迟到对应 phase，或记为待验证假设。
+- 上一条在 phase 内落地后，已转为 settled 的字段级或元素级契约写入 `docs/specs/` 对应文件，不写回计划正文；`docs/specs/` 未启用时，该契约留在本 phase 的验证证据里。
+
+## Active Plans
+
+当前无已激活计划。以 `active/index.md` 为当前索引。
+
+## Proposed Plans
+
+当前无 proposed 计划。以 `proposed/index.md` 为当前索引。
+
+## Completed Plans
+
+当前无 completed 计划。以 `completed/index.md` 为历史索引。

@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+"""Append-only project history ledger.
+
+Sole read/write entry point for `.harness/history/log.jsonl`. Agents append one
+entry per checkpoint, verification, handoff, or decision, and query on demand
+(per the triggers in AGENTS.md) instead of loading the raw file. Never edit the
+ledger file directly.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+ENTRY_TYPES = ("milestone", "decision", "handoff", "verification", "incident", "note")
+SUMMARY_MAX_CHARS = 500
+DEFAULT_QUERY_LIMIT = 20
+
+
+def ledger_path(root: Path) -> Path:
+    return root / ".harness" / "history" / "log.jsonl"
+
+
+def load_entries(path: Path) -> tuple[list[dict], list[int]]:
+    """Return (valid entries sorted by seq, malformed 1-based line numbers)."""
+    if not path.is_file():
+        return [], []
+    entries: list[dict] = []
+    malformed: list[int] = []
+    with path.open(encoding="utf-8") as handle:
+        for number, line in enumerate(handle, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                item = json.loads(stripped)
+            except json.JSONDecodeError:
+                malformed.append(number)
+                continue
+            if isinstance(item, dict) and isinstance(item.get("seq"), int):
+                entries.append(item)
+            else:
+                malformed.append(number)
+    entries.sort(key=lambda item: item["seq"])
+    return entries, malformed
+
+
+def report_malformed(malformed: list[int]) -> None:
+    if malformed:
+        joined = ", ".join(str(number) for number in malformed)
+        print(f"WARNING: skipped malformed ledger lines: {joined}", file=sys.stderr)
+
+
+def render_markdown(entries: list[dict]) -> str:
+    lines: list[str] = []
+    for item in entries:
+        day = str(item.get("ts", ""))[:10]
+        parts = [
+            f"- seq {item['seq']}",
+            day,
+            str(item.get("type", "?")),
+            str(item.get("summary", "")),
+        ]
+        evidence = item.get("evidence")
+        if evidence:
+            parts.append(f"evidence: {evidence}")
+        refs = item.get("refs") or []
+        if refs:
+            parts.append("refs: " + ", ".join(str(ref) for ref in refs))
+        lines.append(" | ".join(parts))
+    return "\n".join(lines)
+
+
+def cmd_append(args: argparse.Namespace, root: Path) -> int:
+    summary = args.summary.strip()
+    if not summary:
+        print("ERROR: --summary must not be empty", file=sys.stderr)
+        return 2
+    if len(summary) > SUMMARY_MAX_CHARS:
+        print(
+            f"ERROR: --summary exceeds {SUMMARY_MAX_CHARS} chars; keep the summary "
+            "short and point to detail via --refs",
+            file=sys.stderr,
+        )
+        return 2
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    seq = (entries[-1]["seq"] + 1) if entries else 1
+    entry = {
+        "seq": seq,
+        "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "type": args.type,
+        "summary": summary,
+        "evidence": args.evidence.strip() if args.evidence else None,
+        "refs": list(args.refs),
+        "actor": args.actor,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(json.dumps({"appended": True, "seq": seq, "path": str(path)}, ensure_ascii=False))
+    return 0
+
+
+def filter_entries(entries: list[dict], args: argparse.Namespace) -> list[dict] | None:
+    result = entries
+    if args.type:
+        result = [item for item in result if item.get("type") == args.type]
+    if args.since:
+        try:
+            datetime.strptime(args.since, "%Y-%m-%d")
+        except ValueError:
+            print("ERROR: --since must be YYYY-MM-DD", file=sys.stderr)
+            return None
+        result = [item for item in result if str(item.get("ts", ""))[:10] >= args.since]
+    if args.grep:
+        needle = args.grep.lower()
+        filtered = []
+        for item in result:
+            haystack = " ".join(
+                [
+                    str(item.get("summary", "")),
+                    str(item.get("evidence") or ""),
+                    " ".join(str(ref) for ref in (item.get("refs") or [])),
+                ]
+            ).lower()
+            if needle in haystack:
+                filtered.append(item)
+        result = filtered
+    return result
+
+
+def cmd_query(args: argparse.Namespace, root: Path) -> int:
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    if not entries:
+        print(f"ledger empty: {path}", file=sys.stderr)
+        return 0
+    matched = filter_entries(entries, args)
+    if matched is None:
+        return 2
+    shown = matched[-args.limit :] if args.limit > 0 else matched
+    print(
+        f"matched {len(matched)} of {len(entries)} entries; showing last {len(shown)}",
+        file=sys.stderr,
+    )
+    if not shown:
+        return 0
+    if args.format == "json":
+        for item in shown:
+            print(json.dumps(item, ensure_ascii=False))
+    else:
+        print(render_markdown(shown))
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--root", type=Path, default=Path(__file__).resolve().parents[1]
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    append_parser = commands.add_parser("append", help="Append one validated entry")
+    append_parser.add_argument("--type", required=True, choices=ENTRY_TYPES)
+    append_parser.add_argument("--summary", required=True, help="One-line factual summary")
+    append_parser.add_argument("--evidence", default=None, help="Test result, commit, or path")
+    append_parser.add_argument(
+        "--refs", nargs="*", default=[], help="Paths or URLs with supporting detail"
+    )
+    append_parser.add_argument("--actor", default="agent", help="Who produced this entry")
+
+    query_parser = commands.add_parser("query", help="Filter entries; newest shown last")
+    query_parser.add_argument("--type", default=None, choices=ENTRY_TYPES)
+    query_parser.add_argument("--since", default=None, help="YYYY-MM-DD inclusive")
+    query_parser.add_argument("--grep", default=None, help="Substring over summary/evidence/refs")
+    query_parser.add_argument("--limit", type=int, default=DEFAULT_QUERY_LIMIT)
+    query_parser.add_argument("--format", choices=("md", "json"), default="md")
+
+    tail_parser = commands.add_parser("tail", help="Show the most recent entries")
+    tail_parser.add_argument("-n", "--limit", type=int, default=10)
+
+    args = parser.parse_args(argv)
+    root = args.root.expanduser().resolve()
+
+    if args.command == "append":
+        return cmd_append(args, root)
+    if args.command == "tail":
+        args.type = None
+        args.since = None
+        args.grep = None
+        args.format = "md"
+        return cmd_query(args, root)
+    return cmd_query(args, root)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -4,10 +4,6 @@
 
 | Skill | 分类 | 状态 | 用途 |
 |---|---|---|---|
-| `role-drafter` | collaboration | 已弃用 | 按协作约定起草可评审的方案。 |
-| `role-executor` | collaboration | 已弃用 | 按已定方案执行，并提交验收记录。 |
-| `role-reviewer` | collaboration | 已弃用 | 评审方案与验收材料，明确通过条件及问题。 |
-| `md-to-pdf-cn` | documents | 已弃用 | 将 Markdown 转为中文 PDF，保留图片、表格和阅读版式。 |
 | `project-brief` | reporting | 已确认使用 | 用可追溯的 HTML 简报说明进展，支持 agent 按需读取证据。 |
 | `research-report-builder` | research | 使用状态待确认 | 把调研材料整理成有来源依据的 Markdown 报告。 |
 | `agent-cli-bridge` | collaboration | 使用状态待确认 · 版本分歧 | 通过本机命令行调用 Claude、Codex 等助手，获取结果或第二意见。 |

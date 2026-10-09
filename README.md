@@ -4,7 +4,7 @@
 
 [浏览技能目录](docs/catalog.md) · [本地可搜索页面](docs/index.html) · [Agent 索引](catalog.json)
 
-当前登记 23 项：2 项保留安装入口，4 项已弃用并保留历史源码，17 项仅登记来源。用户已确认弃用 `role-drafter`、`role-executor`、`role-reviewer` 和 `md-to-pdf-cn`；已从默认列表、安装组合与 `--all` 中排除，按名称安装也会拒绝。
+当前登记 19 项：2 项保留安装入口，17 项仅登记来源。已确认弃用的技能已从当前源码和目录中移除，历史版本仍可通过 Git 记录回溯。
 
 `project-brief` 已确认在用；其余未弃用条目的使用状态仍待确认，不能从“安装目录里有文件”推断活跃使用。`agent-cli-bridge` 和 `project-harness-engineer` 的本机副本有分歧，未自动合并。盘点是 2026-10-09 的快照，官方插件缓存不在迁移范围内。标为弃用不会自动删除机器上的旧安装。
 

@@ -87,6 +87,9 @@ def target(home, agent, name):
     base = (home / AGENTS[agent]).resolve()
     return base / name
 
+def direct_link(path, destination):
+    return path.is_symlink() and Path(os.path.abspath(path.parent / os.readlink(path))) == destination
+
 def exists(p):
     return p.exists() or p.is_symlink()
 
@@ -105,7 +108,7 @@ def install(root, home, name, agent, mode='auto', replace=False, dry_run=False):
     dst = target(home, agent, name)
     db = state(root); k = key(home, agent, name); old = db.get(k)
     mode = ('copy' if os.name == 'nt' else 'link') if mode == 'auto' else mode
-    same_link = mode == 'link' and dst.is_symlink() and dst.resolve() == src
+    same_link = mode == 'link' and direct_link(dst, src)
     same_copy = (mode == 'copy' and old and old['mode'] == 'copy' and dst.is_dir() and not dst.is_symlink()
                  and old['fingerprint'] == sha and fingerprint(dst) == sha)
     if same_link or same_copy:
@@ -148,7 +151,7 @@ def inspect_install(root, home, agent, name):
     dst = target(home, agent, name)
     src = source(root, find(root, name))
     if not exists(dst): status = 'missing'
-    elif rec['mode'] == 'link': status = 'current' if dst.is_symlink() and dst.resolve() == src else 'replaced-locally'
+    elif rec['mode'] == 'link': status = 'current' if direct_link(dst, src) else 'replaced-locally'
     elif dst.is_symlink() or not dst.is_dir(): status = 'replaced-locally'
     elif fingerprint(dst) != rec['fingerprint']: status = 'locally-modified'
     else: status = 'current' if fingerprint(src) == rec['fingerprint'] else 'update-available'

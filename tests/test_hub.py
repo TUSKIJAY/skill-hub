@@ -33,6 +33,11 @@ class HubTests(unittest.TestCase):
     def test_repeat_link_install(self):
         hub.install(self.root,self.home,'example','codex')
         self.assertEqual(hub.install(self.root,self.home,'example','codex')['status'],'already-current')
+    def test_agents_link_directly_to_hub(self):
+        hub.install(self.root,self.home,'example','codex')
+        other=hub.target(self.home,'claude','example');other.parent.mkdir(parents=True);other.symlink_to(self.dst)
+        hub.install(self.root,self.home,'example','claude',replace=True)
+        self.assertEqual(other.readlink(),self.src.resolve())
     def test_copy_update_preserves_user_changes(self):
         hub.install(self.root,self.home,'example','codex',mode='copy')
         (self.dst/'SKILL.md').write_text('my edits');self.file.write_text('new upstream')

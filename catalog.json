@@ -72,28 +72,6 @@
       "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
     },
     {
-      "id": "multi-agent-discussion-harness",
-      "title": "协作讨论工作区",
-      "summary": "为多 agent 讨论准备问题、方案、评审和证据的分层工作目录。",
-      "category": "collaboration",
-      "kind": "reference",
-      "origin": {
-        "kind": "installed-inventory",
-        "captured_at": "2026-10-09",
-        "upstream": null
-      },
-      "review": "not-imported",
-      "observed_locations": [
-        {
-          "agent": "codex",
-          "location": "~/.codex/skills/multi-agent-discussion-harness",
-          "fingerprint": "bf2a98e3ebfe12969bb4338b7bba90a9da3cf767c3810b3960b5727bc384c10c"
-        }
-      ],
-      "lifecycle": "unconfirmed",
-      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
-    },
-    {
       "id": "orchestration",
       "title": "Orca 任务协调",
       "summary": "通过 Orca 分派任务、传递消息、等待结果并处理依赖。",
@@ -262,28 +240,6 @@
           "agent": "shared",
           "location": "~/.agents/skills/typesafe-ai",
           "fingerprint": "07d76735eed4b7e88e1d32c592ae6642f165bb9c004f337f3f90edc70ac7fbb9"
-        }
-      ],
-      "lifecycle": "unconfirmed",
-      "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
-    },
-    {
-      "id": "agent-friendly-md-workflow",
-      "title": "文档转 Markdown",
-      "summary": "通过 MinerU 将 PDF、Office 和图片整理为方便 agent 读取的材料包。",
-      "category": "documents",
-      "kind": "reference",
-      "origin": {
-        "kind": "installed-inventory",
-        "captured_at": "2026-10-09",
-        "upstream": null
-      },
-      "review": "not-imported",
-      "observed_locations": [
-        {
-          "agent": "codex",
-          "location": "~/.codex/skills/agent-friendly-md-workflow",
-          "fingerprint": "d66d096829ee795e3999de8308e0c9c7d53ee9cda2fe74d22c8f8e63acdd5c5c"
         }
       ],
       "lifecycle": "unconfirmed",

@@ -7,7 +7,6 @@
 | `project-brief` | reporting | 已确认使用 | 用可追溯的 HTML 简报说明进展，支持 agent 按需读取证据。 |
 | `research-report-builder` | research | 使用状态待确认 | 把调研材料整理成有来源依据的 Markdown 报告。 |
 | `agent-cli-bridge` | collaboration | 使用状态待确认 · 版本分歧 | 通过本机命令行调用 Claude、Codex 等助手，获取结果或第二意见。 |
-| `multi-agent-discussion-harness` | collaboration | 使用状态待确认 | 为多 agent 讨论准备问题、方案、评审和证据的分层工作目录。 |
 | `orchestration` | collaboration | 使用状态待确认 | 通过 Orca 分派任务、传递消息、等待结果并处理依赖。 |
 | `seedmux-team` | collaboration | 使用状态待确认 | 在独立终端中组织多个 AI 助手协作并收取执行回执。 |
 | `acm-md` | development | 使用状态待确认 | 用结构化 Markdown 描述项目模块、关系与变更，方便 agent 按图查找。 |
@@ -15,7 +14,6 @@
 | `playwright` | development | 使用状态待确认 | 用真实浏览器执行页面操作、截图和交互验证。 |
 | `project-harness-engineer` | development | 使用状态待确认 · 版本分歧 | 维护项目启动说明、进展交接、验证入口和 agent 工作约定。 |
 | `typesafe-ai` | development | 使用状态待确认 | 把专用 AI 能力接入应用，作为可编程的功能单元。 |
-| `agent-friendly-md-workflow` | documents | 使用状态待确认 | 通过 MinerU 将 PDF、Office 和图片整理为方便 agent 读取的材料包。 |
 | `markdown-to-pdf-book` | documents | 使用状态待确认 | 把长篇 Markdown、OCR 材料和中文书稿排版为 PDF。 |
 | `pdf` | documents | 使用状态待确认 | 读取、制作和检查 PDF，关注实际排版与页面效果。 |
 | `codebase-to-course` | learning | 使用状态待确认 | 把代码库整理成面向非技术读者的交互式 HTML 课程。 |

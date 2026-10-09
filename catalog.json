@@ -1,0 +1,486 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "id": "role-drafter",
+      "title": "方案起草者",
+      "summary": "按协作约定起草可评审的方案。",
+      "category": "collaboration",
+      "kind": "managed",
+      "path": "skills/role-drafter",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/role-drafter",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": []
+    },
+    {
+      "id": "role-executor",
+      "title": "方案执行者",
+      "summary": "按已定方案执行，并提交验收记录。",
+      "category": "collaboration",
+      "kind": "managed",
+      "path": "skills/role-executor",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/role-executor",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": []
+    },
+    {
+      "id": "role-reviewer",
+      "title": "独立审稿人",
+      "summary": "评审方案与验收材料，明确通过条件及问题。",
+      "category": "collaboration",
+      "kind": "managed",
+      "path": "skills/role-reviewer",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/role-reviewer",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": []
+    },
+    {
+      "id": "md-to-pdf-cn",
+      "title": "中文 PDF 排版",
+      "summary": "将 Markdown 转为中文 PDF，保留图片、表格和阅读版式。",
+      "category": "documents",
+      "kind": "managed",
+      "path": "skills/md-to-pdf-cn",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/md-to-pdf-cn",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": [
+        "Python",
+        "Pandoc",
+        "Chrome 或 Edge",
+        "PyMuPDF（预览检查）"
+      ],
+      "local_changes": [
+        "Normalize UI metadata from legacy Chinese encoding to UTF-8 with LF; clarify invocation prompt."
+      ]
+    },
+    {
+      "id": "project-brief",
+      "title": "项目进展简报",
+      "summary": "用可追溯的 HTML 简报说明进展，支持 agent 按需读取证据。",
+      "category": "reporting",
+      "kind": "managed",
+      "path": "skills/project-brief",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/project-brief",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": [
+        "Python 3.10+（本机使用 3.13）"
+      ]
+    },
+    {
+      "id": "research-report-builder",
+      "title": "研究报告",
+      "summary": "把调研材料整理成有来源依据的 Markdown 报告。",
+      "category": "research",
+      "kind": "managed",
+      "path": "skills/research-report-builder",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.codex/skills/research-report-builder",
+        "captured_at": "2026-10-09",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": []
+    },
+    {
+      "id": "agent-cli-bridge",
+      "title": "调用其他 AI 助手",
+      "summary": "通过本机命令行调用 Claude、Codex 等助手，获取结果或第二意见。",
+      "category": "collaboration",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "divergent-copies",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/agent-cli-bridge",
+          "fingerprint": "0ec2b5fc5296e0e1128111171eb11a81e7f4a2c6fcc9746b5626cbdd8e4af2c2"
+        },
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/agent-cli-bridge",
+          "fingerprint": "c2c3673f6a37a3cb4d99096776944d827543f5c07021fe0d694c7f17e65081c4"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/agent-cli-bridge",
+          "fingerprint": "a585a7ad2c3b0262096e15aed7917b292427a56338c89925ee5017c7fa285258"
+        }
+      ]
+    },
+    {
+      "id": "multi-agent-discussion-harness",
+      "title": "协作讨论工作区",
+      "summary": "为多 agent 讨论准备问题、方案、评审和证据的分层工作目录。",
+      "category": "collaboration",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/multi-agent-discussion-harness",
+          "fingerprint": "bf2a98e3ebfe12969bb4338b7bba90a9da3cf767c3810b3960b5727bc384c10c"
+        }
+      ]
+    },
+    {
+      "id": "orchestration",
+      "title": "Orca 任务协调",
+      "summary": "通过 Orca 分派任务、传递消息、等待结果并处理依赖。",
+      "category": "collaboration",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/orchestration",
+          "fingerprint": "7f2e22b99ddaca1e5d714c9e3d7265e41cd45c4934b687087de9f3b1cc480c52"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/orchestration",
+          "fingerprint": "7f2e22b99ddaca1e5d714c9e3d7265e41cd45c4934b687087de9f3b1cc480c52"
+        }
+      ]
+    },
+    {
+      "id": "seedmux-team",
+      "title": "Seedmux 多助手团队",
+      "summary": "在独立终端中组织多个 AI 助手协作并收取执行回执。",
+      "category": "collaboration",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/seedmux-team",
+          "fingerprint": "46f0d3d4c45ef7e37793b84fa5f49baf8dde6d251e8a5fa1ab7d51f706992d9e"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/seedmux-team",
+          "fingerprint": "46f0d3d4c45ef7e37793b84fa5f49baf8dde6d251e8a5fa1ab7d51f706992d9e"
+        }
+      ]
+    },
+    {
+      "id": "acm-md",
+      "title": "项目上下文地图",
+      "summary": "用结构化 Markdown 描述项目模块、关系与变更，方便 agent 按图查找。",
+      "category": "development",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/acm-md",
+          "fingerprint": "073083169a7bb3f29a46f32180e8250b1823524c31f3edf0b52bd76f02605f43"
+        }
+      ]
+    },
+    {
+      "id": "orca-cli",
+      "title": "Orca 工作区管理",
+      "summary": "通过 Orca 命令行管理工作区、终端、仓库和任务附件。",
+      "category": "development",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/orca-cli",
+          "fingerprint": "d77fbd2d205d1af1373f6624ebee54ece58e8e1094ea91f54b136367be62a263"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/orca-cli",
+          "fingerprint": "d77fbd2d205d1af1373f6624ebee54ece58e8e1094ea91f54b136367be62a263"
+        }
+      ]
+    },
+    {
+      "id": "playwright",
+      "title": "浏览器自动化",
+      "summary": "用真实浏览器执行页面操作、截图和交互验证。",
+      "category": "development",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/playwright",
+          "fingerprint": "2b1315e0e6c865783aaf7fb8d5455920a4bdc4e46511ed2ad78584e3d553cbf0"
+        }
+      ]
+    },
+    {
+      "id": "project-harness-engineer",
+      "title": "项目协作规范",
+      "summary": "维护项目启动说明、进展交接、验证入口和 agent 工作约定。",
+      "category": "development",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "divergent-copies",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/project-harness-engineer",
+          "fingerprint": "aa8af82fc04ae5a36b1aa7b2d49a076190dcfa6ba8f96e4099a52a2e55d5c9a4"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/project-harness-engineer",
+          "fingerprint": "849bb4ced88a94ae736fd8077d0f3f2d4d2e576ba3db092aad70cc75898513b5"
+        }
+      ]
+    },
+    {
+      "id": "typesafe-ai",
+      "title": "TypeSafe AI 开发",
+      "summary": "把专用 AI 能力接入应用，作为可编程的功能单元。",
+      "category": "development",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/typesafe-ai",
+          "fingerprint": "07d76735eed4b7e88e1d32c592ae6642f165bb9c004f337f3f90edc70ac7fbb9"
+        }
+      ]
+    },
+    {
+      "id": "agent-friendly-md-workflow",
+      "title": "文档转 Markdown",
+      "summary": "通过 MinerU 将 PDF、Office 和图片整理为方便 agent 读取的材料包。",
+      "category": "documents",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/agent-friendly-md-workflow",
+          "fingerprint": "d66d096829ee795e3999de8308e0c9c7d53ee9cda2fe74d22c8f8e63acdd5c5c"
+        }
+      ]
+    },
+    {
+      "id": "markdown-to-pdf-book",
+      "title": "Markdown 成书",
+      "summary": "把长篇 Markdown、OCR 材料和中文书稿排版为 PDF。",
+      "category": "documents",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/markdown-to-pdf-book",
+          "fingerprint": "55060698ff5fdf58cfd13e296b2acad51a8d97142b2638bf235f4f6b24556c6f"
+        }
+      ]
+    },
+    {
+      "id": "pdf",
+      "title": "PDF 处理",
+      "summary": "读取、制作和检查 PDF，关注实际排版与页面效果。",
+      "category": "documents",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/pdf",
+          "fingerprint": "75605de0c36f3ca8ef3de2631a54233721285c5aa3c6f08ddd3380fc4fe9a330"
+        }
+      ]
+    },
+    {
+      "id": "codebase-to-course",
+      "title": "把代码变成课程",
+      "summary": "把代码库整理成面向非技术读者的交互式 HTML 课程。",
+      "category": "learning",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/codebase-to-course",
+          "fingerprint": "6e3a80cd8d2f1a9ef039f805c3d562d202a80b9af246786eeed5139577a94ef5"
+        },
+        {
+          "agent": "claude",
+          "location": "~/.claude/skills/codebase-to-course",
+          "fingerprint": "6e3a80cd8d2f1a9ef039f805c3d562d202a80b9af246786eeed5139577a94ef5"
+        }
+      ]
+    },
+    {
+      "id": "find-skills",
+      "title": "发现更多技能",
+      "summary": "按任务需求查找可用的第三方技能及安装来源。",
+      "category": "management",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "shared",
+          "location": "~/.agents/skills/find-skills",
+          "fingerprint": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+        }
+      ]
+    },
+    {
+      "id": "task-decomposer",
+      "title": "任务澄清与拆解",
+      "summary": "把模糊想法梳理成明确目标，再拆成可执行任务。",
+      "category": "planning",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/task-decomposer",
+          "fingerprint": "709da7902e4308f7400cb91d359203cf7ea9b58ac8977e6cef86baadf1548d6c"
+        }
+      ]
+    },
+    {
+      "id": "kline-extract",
+      "title": "K 线截图提取",
+      "summary": "从交易图截图提取结构化数据，并绘制可核对的 SVG 图表。",
+      "category": "research",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/kline-extract",
+          "fingerprint": "93033fdedcd228d22e7b2650a19bd3e416cc2ed0c9fe5f5c2e19fd8700130a05"
+        }
+      ]
+    },
+    {
+      "id": "target-research-workflow",
+      "title": "投资标的研究",
+      "summary": "组织股票、ETF 等标的的筛选、研究与分析流程。",
+      "category": "research",
+      "kind": "reference",
+      "origin": {
+        "kind": "installed-inventory",
+        "captured_at": "2026-10-09",
+        "upstream": null
+      },
+      "review": "not-imported",
+      "observed_locations": [
+        {
+          "agent": "codex",
+          "location": "~/.codex/skills/target-research-workflow",
+          "fingerprint": "aba41151ab87f88000e81dcfad0934d67ca5634db27756d5ff0d57ea12256e40"
+        }
+      ]
+    }
+  ]
+}

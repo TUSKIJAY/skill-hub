@@ -1,0 +1,4 @@
+interface:
+  display_name: "项目进展简报"
+  short_description: "用平实语言展示项目进展，以分层索引按需追溯对应的原始证据"
+  default_prompt: "使用 $project-brief，根据项目现有记录生成可追溯的 HTML 简报，让我看懂进展，并让 agent 按需读取详情和证据。"

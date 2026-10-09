@@ -1,0 +1,4 @@
+interface:
+  display_name: "通用调研报告生成器"
+  short_description: "生成 Deep Research 素材提示词，并将素材组装成 Markdown 调研报告。"
+  default_prompt: "帮我为一个调研主题生成素材收集 Prompt；我提供素材后，请输出 Markdown 调研报告。"

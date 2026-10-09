@@ -1,0 +1,12 @@
+{
+  "desktop": [
+    "project-brief",
+    "research-report-builder",
+    "md-to-pdf-cn"
+  ],
+  "collaboration": [
+    "role-drafter",
+    "role-executor",
+    "role-reviewer"
+  ]
+}

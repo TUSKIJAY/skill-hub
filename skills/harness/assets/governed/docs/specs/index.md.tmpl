@@ -1,0 +1,11 @@
+# Spec Index
+
+本索引收录 `{{PROJECT_NAME}}` 的行为契约文档。SPEC 记录系统必须表现的行为，是意图权威而非状态权威：条目写明某行为应当成立，不等于它当前已成立；当前事实以 当前权威材料和产物核验（适用时含 Git、测试）与 `../../PROGRESS.md` 为准。
+条目分 proposed 与 settled 两态。转为 settled 必须填写 Verification 列，内容是具体测试名、可执行命令，或含输入/步骤/预期结果/证据位置的人工核验流程；没有验证指针的条目只能留在 proposed。
+实现选择（选哪个库、怎么分层、内部数据结构）不进本目录，它属于计划正文，或按 `../decisions/index.md` 的登记条件成为一条决策。
+phase 边界同步本目录时，跑本 phase 触及的 settled 条目的 Verification；失败记为该 phase 验收的 blocking 项，解除条件见对应 spec 文件的 Rules 段。
+本索引或 `../prd/index.md` 出现非模板行即视为本项目启用 PRD/SPEC 文档层；未启用时 phase 边界的 SPEC 同步是 no-op，不创建目录内容。
+
+| Spec | Area | Settled | Proposed | Source PRD |
+| --- | --- | --- | --- | --- |
+| None | — | — | — | — |

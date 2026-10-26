@@ -1,0 +1,4 @@
+interface:
+  display_name: "harness"
+  short_description: "Build and improve lightweight project harnesses"
+  default_prompt: "Use $harness to audit this project's harness and improve it within the requested scope, defaulting to minimal."

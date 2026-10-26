@@ -1,0 +1,378 @@
+#!/usr/bin/env python3
+"""Read-only deterministic budget check for the four startup documents.
+
+Checks each file's size, the four files' total and the shape of PROGRESS.md. JSON goes to stdout;
+the per-file lines and what to do about each crossed limit ("动作：...") go to stderr.
+
+Exit codes: 0 within budget; 1 a hard limit (one file or the total) is exceeded; 2 with --strict
+when a file warning, the total warning or a PROGRESS.md shape limit is crossed.
+
+Thresholds: the optional `startup_budget` object in .harness/config.json, with blocks `files`
+(per file name), `total` and `shape`, overrides the defaults below field by field. A missing block
+or field keeps its default; a field that is not a positive integer prints a warning and keeps it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+PYTHON_COMMAND = {{PYTHON_JSON}}
+DEFAULT_FILES = {
+    "AGENTS.md": {"warning_lines": 180, "warning_bytes": 24_576, "hard_lines": 240, "hard_bytes": 32_768},
+    "INSTRUCTIONS.md": {"warning_lines": 220, "warning_bytes": 30_720, "hard_lines": 300, "hard_bytes": 40_960},
+    "PROGRESS.md": {"warning_lines": 200, "warning_bytes": 24_576, "hard_lines": 280, "hard_bytes": 32_768},
+    "HANDOFF.md": {"warning_lines": 60, "warning_bytes": 8_192, "hard_lines": 90, "hard_bytes": 16_384},
+}
+# The four files together; the warning line is roughly 11-13k tokens loaded before any work starts.
+DEFAULT_TOTAL = {"warning_bytes": 40_960, "hard_bytes": 57_344}
+# PROGRESS.md shape. Facts, In Progress and Completed count top-level "- " bullets; Verified Baseline
+# counts table data rows (header and separator rows excluded). Blocked, Backlog and Open Unknowns have
+# no count limit; any line over long_line_bytes that is not already an oversized item only gets a hint.
+DEFAULT_SHAPE = {
+    "completed_max_entries": 5,
+    "baseline_max_rows": 12,
+    "facts_item_bytes": 900,
+    "in_progress_item_bytes": 900,
+    "baseline_row_bytes": 400,
+    "long_line_bytes": 1_200,
+}
+SHAPE_SECTIONS = ("Facts", "In Progress", "Verified Baseline", "Completed")
+ITEM_LIMIT_KEYS = {"Facts": "facts_item_bytes", "In Progress": "in_progress_item_bytes",
+                   "Verified Baseline": "baseline_row_bytes"}
+SEPARATOR_ROW = re.compile(r"^\|\s*:?-{3,}")
+READ_ENCODING = "utf-8-sig"
+EXIT_OK = 0
+EXIT_HARD = 1
+EXIT_STRICT = 2
+
+
+def ensure_utf8_stdio() -> None:
+    """Force UTF-8 stdout/stderr so Chinese text survives a GBK console or pipe."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError) as exc:
+            print(f"WARNING: cannot switch output to UTF-8: {exc}", file=sys.stderr)
+
+
+def ledger_append(entry_type: str = "milestone") -> str:
+    return f'{PYTHON_COMMAND} scripts/harness_log.py append --type {entry_type} --summary "..." --evidence "..."'
+
+
+def overlay(defaults: dict[str, int], value: object, where: str, warnings: list[str]) -> dict[str, int]:
+    """Defaults with each valid field of `value` applied; anything else is reported and ignored."""
+    result = dict(defaults)
+    if value is None:
+        return result
+    if not isinstance(value, dict):
+        warnings.append(f"{where} 不是对象，整块用默认值")
+        return result
+    for key, item in value.items():
+        if key not in defaults:
+            warnings.append(f"{where}.{key} 不认识，已忽略")
+        elif isinstance(item, int) and not isinstance(item, bool) and item > 0:
+            result[key] = item
+        else:
+            warnings.append(f"{where}.{key}={item!r} 不是正整数，改用默认值 {defaults[key]}")
+    return result
+
+
+def startup_budget(root: Path) -> tuple[dict[str, dict[str, int]], dict[str, int], dict[str, int], list[str]]:
+    """(files, total, shape, warnings) from the optional `startup_budget` config object."""
+    warnings: list[str] = []
+    spec: object = None
+    try:
+        config = json.loads((root / ".harness/config.json").read_text(encoding=READ_ENCODING))
+        spec = config.get("startup_budget") if isinstance(config, dict) else None
+    except FileNotFoundError:
+        pass
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        warnings.append(f"读不了 .harness/config.json（{type(exc).__name__}），全部用默认值")
+    if spec is not None and not isinstance(spec, dict):
+        warnings.append("startup_budget 不是对象，全部用默认值")
+        spec = None
+    spec = spec or {}
+    for key in spec:
+        if key not in ("files", "total", "shape"):
+            warnings.append(f"startup_budget.{key} 不认识，已忽略")
+    files_spec = spec.get("files")
+    if files_spec is not None and not isinstance(files_spec, dict):
+        warnings.append("startup_budget.files 不是对象，整块用默认值")
+        files_spec = None
+    files_spec = files_spec or {}
+    for name in files_spec:
+        if name not in DEFAULT_FILES:
+            warnings.append(f"startup_budget.files.{name} 不认识，已忽略")
+    files = {name: ordered(overlay(limits, files_spec.get(name), f"startup_budget.files.{name}", warnings),
+                           f"startup_budget.files.{name}", warnings)
+             for name, limits in DEFAULT_FILES.items()}
+    total = ordered(overlay(DEFAULT_TOTAL, spec.get("total"), "startup_budget.total", warnings),
+                    "startup_budget.total", warnings)
+    shape = overlay(DEFAULT_SHAPE, spec.get("shape"), "startup_budget.shape", warnings)
+    return files, total, shape, warnings
+
+
+def ordered(limits: dict[str, int], where: str, warnings: list[str]) -> dict[str, int]:
+    """A hard line below its warning line would skip the warning; lower the warning line to it."""
+    for unit in ("lines", "bytes"):
+        warning, hard = f"warning_{unit}", f"hard_{unit}"
+        if warning in limits and limits[hard] < limits[warning]:
+            warnings.append(f"{where}.{hard}={limits[hard]} 低于 {warning}={limits[warning]}，预警线改用 {limits[hard]}")
+            limits[warning] = limits[hard]
+    return limits
+
+
+def evaluate(root: Path, relative: str, limits: dict[str, int]) -> tuple[dict[str, object], str]:
+    """(record, text). The size is checked first: a file over its hard byte limit is not read. An unreadable
+    file counts as over every limit."""
+    record: dict[str, object] = {
+        "path": relative,
+        "lines": None,
+        "bytes": None,
+        "limits": limits,
+        "archive_required": True,
+        "hard_limit_exceeded": True,
+        "unread": None,
+        "error": None,
+    }
+    path = root / relative
+    try:
+        size = path.stat().st_size
+        if size > limits["hard_bytes"]:
+            record["bytes"] = size
+            record["unread"] = f"超过硬上限 {limits['hard_bytes']:,} 字节，未读内容"
+            return record, ""
+        raw = path.read_bytes()
+        text = raw.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        record["error"] = f"{type(exc).__name__}: {exc}"
+        return record, ""
+    lines = len(text.splitlines())
+    record.update(
+        lines=lines,
+        bytes=len(raw),
+        archive_required=lines >= limits["warning_lines"] or len(raw) >= limits["warning_bytes"],
+        hard_limit_exceeded=lines > limits["hard_lines"] or len(raw) > limits["hard_bytes"],
+    )
+    return record, text.lstrip("\ufeff")
+
+
+def largest_section(text: str) -> tuple[str, int, int] | None:
+    """(heading, first line, bytes) of the biggest section; None for a file that was not read."""
+    return max(section_sizes(text), key=lambda item: item[2]) if text else None
+
+
+def section_sizes(text: str) -> list[tuple[str, int, int]]:
+    """(heading, first line, bytes) for each `## ` section; text above the first one is "开头"."""
+    result: list[tuple[str, int, int]] = []
+    heading, start, size = "开头", 1, 0
+    for number, line in enumerate(text.splitlines(), start=1):
+        if line.startswith("## "):
+            result.append((heading, start, size))
+            heading, start, size = line[3:].strip(), number, 0
+        size += len(line.encode("utf-8")) + 1
+    result.append((heading, start, size))
+    return result
+
+
+def total_budget(documents: list[dict[str, object]], texts: dict[str, str], limits: dict[str, int]) -> dict[str, object]:
+    """The four files' byte total, and where most of it sits."""
+    readable = [item for item in documents if isinstance(item["bytes"], int)]
+    total = sum(int(item["bytes"]) for item in readable)
+    result: dict[str, object] = {
+        "bytes": total,
+        "warning_bytes": limits["warning_bytes"],
+        "hard_bytes": limits["hard_bytes"],
+        "warning_exceeded": total >= limits["warning_bytes"],
+        "hard_limit_exceeded": total > limits["hard_bytes"],
+        "largest": None,
+    }
+    if readable and total:
+        top = max(readable, key=lambda item: int(item["bytes"]))
+        heading, line, size = largest_section(texts[str(top["path"])]) or (None, None, None)
+        result["largest"] = {
+            "path": top["path"],
+            "bytes": top["bytes"],
+            "share_percent": round(int(top["bytes"]) * 100 / total),
+            "section": heading,
+            "section_line": line,
+            "section_bytes": size,
+        }
+    return result
+
+
+def progress_shape(text: str, shape: dict[str, int]) -> dict[str, object]:
+    """Counts and oversized items per the D0035 rules; `over_limit` never looks at file size."""
+    lines = text.splitlines()
+    section = None
+    completed = 0
+    baseline_rows = 0
+    oversized: list[dict[str, object]] = []
+    long_lines: list[int] = []
+    for index, line in enumerate(lines):
+        number = index + 1
+        if line.startswith("## "):
+            title = line[3:].strip()
+            section = next((name for name in SHAPE_SECTIONS if title.startswith(name)), title)
+            continue
+        size = len(line.encode("utf-8"))
+        is_item = line.startswith("- ")
+        if section == "Verified Baseline":
+            following = lines[index + 1] if index + 1 < len(lines) else ""
+            # A row followed by a separator row is the header.
+            is_item = line.startswith("|") and not SEPARATOR_ROW.match(line) and not SEPARATOR_ROW.match(following)
+            baseline_rows += is_item
+        elif section == "Completed" and is_item:
+            completed += 1
+        limit_key = ITEM_LIMIT_KEYS.get(section or "")
+        if is_item and limit_key and size > shape[limit_key]:
+            oversized.append({"section": section, "line": number, "bytes": size, "limit": shape[limit_key]})
+        elif size > shape["long_line_bytes"]:
+            long_lines.append(number)
+    return {
+        "completed_entries": completed,
+        "completed_max": shape["completed_max_entries"],
+        "baseline_rows": baseline_rows,
+        "baseline_max": shape["baseline_max_rows"],
+        "oversized_items": oversized,
+        "long_lines": long_lines,
+        "long_line_bytes": shape["long_line_bytes"],
+        "over_limit": (completed > shape["completed_max_entries"] or baseline_rows > shape["baseline_max_rows"]
+                       or bool(oversized)),
+    }
+
+
+def section_todo(path: str, heading: str | None, completed_over: bool) -> str:
+    """What to do with the biggest section of a startup file; the ledger is for Completed entries only."""
+    if path == "PROGRESS.md" and (completed_over or (heading or "").startswith("Completed")):
+        return f"把 Completed 最老条目迁入账本：{ledger_append()}，再从 PROGRESS.md 删除并更新 Ledger Pointers"
+    if path == "PROGRESS.md":
+        return "把这一节的长条目拆成一行事实 + 链接，细节移到链接的文档"
+    if path == "HANDOFF.md":
+        return "按固定字段整体重写，只留指针，不复制完成清单、验收结果或历史"
+    return "把这一节的长段落移到它链接的文档，这里只留一行规则和链接"
+
+
+def section_clause(path: str, heading: str | None, line: int | None, size: int | None, completed_over: bool) -> str:
+    if heading is None:
+        return (f"内容未读；先用 `{PYTHON_COMMAND} scripts/harness_read.py outline \"{path}\"` 看各小节，"
+                "再压缩最大的一节")
+    return f"最大的小节是第 {line} 行“{heading}”（{size:,} 字节），{section_todo(path, heading, completed_over)}"
+
+
+def actions_for(documents: list[dict[str, object]], texts: dict[str, str], total: dict[str, object],
+                shape: dict[str, object]) -> list[str]:
+    """What to do about each crossed limit, as lines a reader can act on directly."""
+    actions: list[str] = []
+    completed_over = "error" not in shape and int(shape["completed_entries"]) > int(shape["completed_max"])
+    for item in documents:
+        limits = item["limits"]
+        path = str(item["path"])
+        if item["error"]:
+            actions.append(f"动作：{path} 读不了（{item['error']}），先修好这个文件")
+        elif item["unread"]:
+            actions.append(f"动作：{path} {item['bytes']:,} 字节，{item['unread']}。"
+                           + section_clause(path, None, None, None, completed_over))
+        elif item["archive_required"] or item["hard_limit_exceeded"]:
+            line = "硬上限" if item["hard_limit_exceeded"] else "预警"
+            key = "hard" if item["hard_limit_exceeded"] else "warning"
+            heading, number, size = largest_section(texts[path]) or (None, None, None)
+            actions.append(f"动作：{path} {item['bytes']:,} 字节、{item['lines']} 行（{line} "
+                           f"{limits[key + '_bytes']:,} 字节、{limits[key + '_lines']} 行）。"
+                           + section_clause(path, heading, number, size, completed_over))
+    if (total["warning_exceeded"] or total["hard_limit_exceeded"]) and total["largest"]:
+        largest = total["largest"]
+        line = f"硬上限 {total['hard_bytes']:,}" if total["hard_limit_exceeded"] else f"预警 {total['warning_bytes']:,}"
+        actions.append(
+            f"动作：四件合计 {total['bytes']:,} 字节（{line}）。占比最大的是 {largest['path']}"
+            f"（{largest['bytes']:,} 字节，{largest['share_percent']}%）"
+            + ("，其中" if largest["section"] else "。")
+            + section_clause(str(largest["path"]), largest["section"], largest["section_line"],
+                             largest["section_bytes"], completed_over)
+        )
+    if "error" in shape:
+        return actions
+    extra = int(shape["completed_entries"]) - int(shape["completed_max"])
+    if extra > 0:
+        actions.append(f"动作：PROGRESS.md Completed 有 {shape['completed_entries']} 条（上限 {shape['completed_max']}），"
+                       f"把最老 {extra} 条迁入账本：{ledger_append()}，再从 PROGRESS.md 删除并更新 Ledger Pointers")
+    extra = int(shape["baseline_rows"]) - int(shape["baseline_max"])
+    if extra > 0:
+        actions.append(f"动作：PROGRESS.md Verified Baseline 有 {shape['baseline_rows']} 行（上限 {shape['baseline_max']}），"
+                       f"把最老 {extra} 行迁入账本：{ledger_append('verification')}，表里只留当前基线")
+    for item in shape["oversized_items"]:
+        actions.append(f"动作：PROGRESS.md 第 {item['line']} 行 {item['bytes']:,} 字节（{item['section']} 上限 "
+                       f"{item['limit']:,}），拆成一行事实 + 链接")
+    if shape["long_lines"]:
+        numbers = "、".join(str(number) for number in shape["long_lines"])
+        actions.append(f"提示：PROGRESS.md 第 {numbers} 行超过 {shape['long_line_bytes']:,} 字节，可以拆短（不计超限）")
+    return actions
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--strict", action="store_true",
+                        help="commit gate: exit 2 when a warning line or a PROGRESS.md shape limit is crossed")
+    args = parser.parse_args(argv)
+    root = args.root.expanduser().resolve()
+    files, total_limits, shape_limits, config_warnings = startup_budget(root)
+    documents: list[dict[str, object]] = []
+    texts: dict[str, str] = {}
+    for relative in sorted(files):
+        record, texts[relative] = evaluate(root, relative, files[relative])
+        documents.append(record)
+    total = total_budget(documents, texts, total_limits)
+    progress = next(item for item in documents if item["path"] == "PROGRESS.md")
+    if progress["error"] or progress["unread"]:
+        shape: dict[str, object] = {"error": progress["error"] or progress["unread"], "over_limit": True}
+    else:
+        shape = progress_shape(texts["PROGRESS.md"], shape_limits)
+    actions = actions_for(documents, texts, total, shape)
+    payload = {
+        "schema_version": "startup-doc-budget-v1",
+        "root": str(root),
+        "documents": documents,
+        "total": total,
+        "progress_shape": shape,
+        "actions": actions,
+        "config_warnings": config_warnings,
+        "archive_required": any(bool(item["archive_required"]) for item in documents),
+        "hard_limit_exceeded": any(bool(item["hard_limit_exceeded"]) for item in documents)
+        or bool(total["hard_limit_exceeded"]),
+    }
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+    for warning in config_warnings:
+        print(f"警告：{warning}", file=sys.stderr)
+    for item in documents:
+        print(
+            f"{item['path']}: lines={item['lines']} bytes={item['bytes']} "
+            f"archive_required={str(item['archive_required']).lower()} "
+            f"hard_limit_exceeded={str(item['hard_limit_exceeded']).lower()}",
+            file=sys.stderr,
+        )
+    print(f"total: bytes={total['bytes']} warning={total['warning_bytes']} hard={total['hard_bytes']} "
+          f"warning_exceeded={str(total['warning_exceeded']).lower()} "
+          f"hard_limit_exceeded={str(total['hard_limit_exceeded']).lower()}", file=sys.stderr)
+    if "error" not in shape:
+        print(f"PROGRESS.md shape: completed={shape['completed_entries']}/{shape['completed_max']} "
+              f"baseline_rows={shape['baseline_rows']}/{shape['baseline_max']} "
+              f"oversized_items={len(shape['oversized_items'])} long_lines={shape['long_lines']} "
+              f"over_limit={str(shape['over_limit']).lower()}", file=sys.stderr)
+    for action in actions:
+        print(action, file=sys.stderr)
+    if payload["hard_limit_exceeded"]:
+        return EXIT_HARD
+    if args.strict and (payload["archive_required"] or total["warning_exceeded"] or shape["over_limit"]):
+        print("严格模式：有预警或形状超限，按上面的动作处理后再提交。", file=sys.stderr)
+        return EXIT_STRICT
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    ensure_utf8_stdio()
+    raise SystemExit(main())

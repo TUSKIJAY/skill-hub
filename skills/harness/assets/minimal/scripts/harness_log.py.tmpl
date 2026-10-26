@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+"""Append-only project history ledger.
+
+Sole read/write entry point for `.harness/history/log.jsonl`. Agents append one
+entry per checkpoint, verification, handoff, or decision, and query on demand
+(per the triggers in AGENTS.md) instead of loading the raw file. `show` prints
+the entries behind one cited seq (or id, when entries carry one) so a cited
+number can be explained from the record. Never edit the ledger file directly.
+
+External writes are two-phase: `append --type intent` (evidence = operation id
+or idempotency key) before the action, then a `milestone` or `incident` appended
+with `--closes <seq>` after it. `pending` lists the intents no entry closed and
+exits 1 while any remain, for the start of a session or a takeover.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+ENTRY_TYPES = ("milestone", "decision", "handoff", "verification", "incident", "intent", "note")
+OUTPUT_FORMATS = ("md", "json")
+SUMMARY_MAX_CHARS = 500
+DEFAULT_QUERY_LIMIT = 20
+DEFAULT_TAIL_LIMIT = 10
+# Reads accept an optional UTF-8 BOM; appended lines stay UTF-8 without BOM.
+READ_ENCODING = "utf-8-sig"
+WRITE_ENCODING = "utf-8"
+EXIT_OK = 0
+EXIT_NOT_FOUND = 1
+EXIT_PENDING = 1
+EXIT_USAGE = 2
+# A non-intent entry whose refs carry `seq:<N>` closes the intent entry N.
+CLOSE_REF_PREFIX = "seq:"
+
+
+def ensure_utf8_stdio() -> None:
+    """Force UTF-8 stdout/stderr so Chinese text survives a GBK console or pipe."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError) as exc:
+            print(f"WARNING: cannot switch output to UTF-8: {exc}", file=sys.stderr)
+
+
+def ledger_path(root: Path) -> Path:
+    return root / ".harness" / "history" / "log.jsonl"
+
+
+def load_entries(path: Path) -> tuple[list[dict], list[int]]:
+    """Return (valid entries sorted by seq, malformed 1-based line numbers)."""
+    if not path.is_file():
+        return [], []
+    entries: list[dict] = []
+    malformed: list[int] = []
+    with path.open(encoding=READ_ENCODING) as handle:
+        for number, line in enumerate(handle, start=1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                item = json.loads(stripped)
+            except json.JSONDecodeError:
+                malformed.append(number)
+                continue
+            if isinstance(item, dict) and isinstance(item.get("seq"), int):
+                entries.append(item)
+            else:
+                malformed.append(number)
+    entries.sort(key=lambda item: item["seq"])
+    return entries, malformed
+
+
+def report_malformed(malformed: list[int]) -> None:
+    if malformed:
+        joined = ", ".join(str(number) for number in malformed)
+        print(f"WARNING: skipped malformed ledger lines: {joined}", file=sys.stderr)
+
+
+def render_markdown(entries: list[dict]) -> str:
+    lines: list[str] = []
+    for item in entries:
+        day = str(item.get("ts", ""))[:10]
+        label = f"- seq {item['seq']}"
+        if item.get("id"):
+            label += f" id {item['id']}"
+        parts = [label, day, str(item.get("type", "?")), str(item.get("summary", ""))]
+        evidence = item.get("evidence")
+        if evidence:
+            parts.append(f"evidence: {evidence}")
+        refs = item.get("refs") or []
+        if refs:
+            parts.append("refs: " + ", ".join(str(ref) for ref in refs))
+        lines.append(" | ".join(parts))
+    return "\n".join(lines)
+
+
+def print_entries(entries: list[dict], output_format: str) -> None:
+    if output_format == "json":
+        for item in entries:
+            print(json.dumps(item, ensure_ascii=False))
+    else:
+        print(render_markdown(entries))
+
+
+def cmd_append(args: argparse.Namespace, root: Path) -> int:
+    summary = args.summary.strip()
+    if not summary:
+        print("ERROR: --summary must not be empty", file=sys.stderr)
+        return EXIT_USAGE
+    if len(summary) > SUMMARY_MAX_CHARS:
+        print(
+            f"ERROR: --summary exceeds {SUMMARY_MAX_CHARS} chars; keep the summary "
+            "short and point to detail via --refs",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    refs = list(args.refs)
+    for target in dict.fromkeys(args.closes):
+        problem = close_problem(entries, target, args.type)
+        if problem:
+            print(f"ERROR: --closes {target}: {problem}", file=sys.stderr)
+            return EXIT_USAGE
+        ref = f"{CLOSE_REF_PREFIX}{target}"
+        if ref not in refs:
+            refs.append(ref)
+    seq = (entries[-1]["seq"] + 1) if entries else 1
+    entry = {
+        "seq": seq,
+        "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "type": args.type,
+        "summary": summary,
+        "evidence": args.evidence.strip() if args.evidence else None,
+        "refs": refs,
+        "actor": args.actor,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding=WRITE_ENCODING, newline="\n") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(json.dumps({"appended": True, "seq": seq, "path": str(path)}, ensure_ascii=False))
+    return EXIT_OK
+
+
+def close_problem(entries: list[dict], target: int, entry_type: str) -> str | None:
+    """Why an entry of `entry_type` cannot close seq `target`; None when it can."""
+    if entry_type == "intent":
+        return "an intent cannot close another intent; append the milestone or incident that closes it"
+    matched = [item for item in entries if item["seq"] == target]
+    if not matched:
+        return f"no ledger entry with seq {target}"
+    if not any(item.get("type") == "intent" for item in matched):
+        return f"seq {target} is not an intent entry"
+    return None
+
+
+def closed_seqs(entries: list[dict]) -> set[int]:
+    """Seqs that a non-intent entry closes through a `seq:<N>` ref."""
+    closed: set[int] = set()
+    for item in entries:
+        if item.get("type") == "intent":
+            continue
+        for ref in item.get("refs") or []:
+            text = str(ref)
+            if text.startswith(CLOSE_REF_PREFIX) and text[len(CLOSE_REF_PREFIX):].isdigit():
+                closed.add(int(text[len(CLOSE_REF_PREFIX):]))
+    return closed
+
+
+def open_intents(entries: list[dict]) -> list[dict]:
+    closed = closed_seqs(entries)
+    return [item for item in entries if item.get("type") == "intent" and item["seq"] not in closed]
+
+
+def cmd_pending(args: argparse.Namespace, root: Path) -> int:
+    """List intent entries nothing closed; exit 1 while any is open, so a startup check or gate can use it."""
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    pending = open_intents(entries)
+    if not pending:
+        print("no open intents")
+        return EXIT_OK
+    print(
+        f"{len(pending)} open intent(s): verify in the external system or artifact whether each already "
+        "happened, then close it with `append --type <milestone|incident> --closes <seq> ...`; do not redo it "
+        "unverified",
+        file=sys.stderr,
+    )
+    print_entries(pending, args.format)
+    return EXIT_PENDING
+
+
+def filter_entries(entries: list[dict], args: argparse.Namespace) -> list[dict] | None:
+    result = entries
+    if args.type:
+        result = [item for item in result if item.get("type") == args.type]
+    if args.since:
+        try:
+            datetime.strptime(args.since, "%Y-%m-%d")
+        except ValueError:
+            print("ERROR: --since must be YYYY-MM-DD", file=sys.stderr)
+            return None
+        result = [item for item in result if str(item.get("ts", ""))[:10] >= args.since]
+    if args.grep:
+        needle = args.grep.lower()
+        filtered = []
+        for item in result:
+            haystack = " ".join(
+                [
+                    str(item.get("id") or ""),
+                    str(item.get("summary", "")),
+                    str(item.get("evidence") or ""),
+                    " ".join(str(ref) for ref in (item.get("refs") or [])),
+                ]
+            ).lower()
+            if needle in haystack:
+                filtered.append(item)
+        result = filtered
+    return result
+
+
+def cmd_query(args: argparse.Namespace, root: Path) -> int:
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    if not entries:
+        print(f"ledger empty: {path}", file=sys.stderr)
+        return EXIT_OK
+    matched = filter_entries(entries, args)
+    if matched is None:
+        return EXIT_USAGE
+    shown = matched[-args.limit :] if args.limit > 0 else matched
+    print(
+        f"matched {len(matched)} of {len(entries)} entries; showing last {len(shown)}",
+        file=sys.stderr,
+    )
+    if shown:
+        print_entries(shown, args.format)
+    return EXIT_OK
+
+
+def show_miss_reason(entries: list[dict], key: str, value: object, path: Path) -> str:
+    if not entries:
+        return f"ledger empty or missing: {path}"
+    if key == "id" and not any("id" in item for item in entries):
+        return "no ledger entry has an `id` field; look entries up with --seq instead"
+    return f"no ledger entry with {key} {value}"
+
+
+def cmd_show(args: argparse.Namespace, root: Path) -> int:
+    """Print every entry with the given seq or id; exit 1 when none matches."""
+    path = ledger_path(root)
+    entries, malformed = load_entries(path)
+    report_malformed(malformed)
+    key, value = ("seq", args.seq) if args.seq is not None else ("id", args.id.strip())
+    matched = [item for item in entries if item.get(key) == value]
+    if not matched:
+        print(f"ERROR: {show_miss_reason(entries, key, value, path)}", file=sys.stderr)
+        return EXIT_NOT_FOUND
+    if len(matched) > 1 and key == "seq":
+        print(
+            f"NOTE: {len(matched)} entries share seq {value} (normal after a branch merge); "
+            "all are shown, cite them by id when they carry one",
+            file=sys.stderr,
+        )
+    elif len(matched) > 1:
+        print(
+            f"WARNING: {len(matched)} entries share id {value}; ids must be unique, "
+            "so the ledger's integrity needs checking. All are shown",
+            file=sys.stderr,
+        )
+    print_entries(matched, args.format)
+    return EXIT_OK
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--root", type=Path, default=Path(__file__).resolve().parents[1]
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    append_parser = commands.add_parser("append", help="Append one validated entry")
+    append_parser.add_argument("--type", required=True, choices=ENTRY_TYPES)
+    append_parser.add_argument("--summary", required=True, help="One-line factual summary")
+    append_parser.add_argument("--evidence", default=None, help="Test result, commit, or path")
+    append_parser.add_argument(
+        "--refs", nargs="*", default=[], help="Paths or URLs with supporting detail"
+    )
+    append_parser.add_argument("--actor", default="agent", help="Who produced this entry")
+    append_parser.add_argument(
+        "--closes", type=int, action="append", default=[], metavar="SEQ",
+        help="seq of the intent entry this entry closes (adds seq:<N> to --refs); repeatable",
+    )
+
+    query_parser = commands.add_parser("query", help="Filter entries; newest shown last")
+    query_parser.add_argument("--type", default=None, choices=ENTRY_TYPES)
+    query_parser.add_argument("--since", default=None, help="YYYY-MM-DD inclusive")
+    query_parser.add_argument("--grep", default=None, help="Substring over id/summary/evidence/refs")
+    query_parser.add_argument("--limit", type=int, default=DEFAULT_QUERY_LIMIT)
+    query_parser.add_argument("--format", choices=OUTPUT_FORMATS, default="md")
+
+    show_parser = commands.add_parser("show", help="Print every entry with one seq or id")
+    selector = show_parser.add_mutually_exclusive_group(required=True)
+    selector.add_argument("--seq", type=int, help="Sequence number; may repeat after branch merges")
+    selector.add_argument("--id", help="Entry id, for ledgers whose entries carry one")
+    show_parser.add_argument("--format", choices=OUTPUT_FORMATS, default="md")
+
+    pending_parser = commands.add_parser("pending", help="List intent entries nothing closed; exit 1 while any is open")
+    pending_parser.add_argument("--format", choices=OUTPUT_FORMATS, default="md")
+
+    tail_parser = commands.add_parser("tail", help="Show the most recent entries")
+    tail_parser.add_argument("-n", "--limit", type=int, default=DEFAULT_TAIL_LIMIT)
+
+    args = parser.parse_args(argv)
+    root = args.root.expanduser().resolve()
+
+    if args.command == "append":
+        return cmd_append(args, root)
+    if args.command == "show":
+        return cmd_show(args, root)
+    if args.command == "pending":
+        return cmd_pending(args, root)
+    if args.command == "tail":
+        args.type = None
+        args.since = None
+        args.grep = None
+        args.format = "md"
+    return cmd_query(args, root)
+
+
+if __name__ == "__main__":
+    ensure_utf8_stdio()
+    raise SystemExit(main())

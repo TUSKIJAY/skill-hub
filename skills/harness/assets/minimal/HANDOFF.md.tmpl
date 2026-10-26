@@ -1,0 +1,14 @@
+# Handoff
+
+`open_questions` 和 `verify` 优先只放已有事实/业务清单/验收契约的精确路径与段落；没有额外续接信息就写“无额外项”。不复述未完成事实、检查结果或业务验收步骤。`first_action` 保留一个必要动作，不能把未授权待办变成执行授权。纯查询无新持久事实时保留现有交接包，不为回答问题重写它。账本 `pending` 列出未闭合的外部写入意图时，`verify` 必须写明核实其是否已发生的方法。`do_not` 写成无条件、不带时效的闸门，例如「缺页 → 先问用户是否重算，每张约 45 分钟，勿擅自开算」，不写「没出就等」这类依赖当时后台任务的说法；`first_action` 不能是昂贵或不可逆的动作。
+
+本文件是交接包，只回答"没有新的用户请求时，下一个会话第一步做什么"。每次交接**整体覆盖重写**，不追加历史，不复制 `PROGRESS.md` 的内容。启动时读一次，开工后即视为过期，不再回读；与 `PROGRESS.md` 或仓库现实冲突时，以后者为准；仅本次需更新状态或依赖它执行写入时，才修正过期状态。
+
+- progress_ref: `PROGRESS.md#facts`（{{DATE}}；接手时校准实际段落/证据指针）
+- from: harness-install
+- just_finished: 初始化事实见 `progress_ref`；此处只留一句定位，不复制完成清单或验收结果。
+- current_task: 首次接管校准——核对项目目标、已有成果、验收方式与阻塞。
+- first_action: 读 `PROGRESS.md` 的 Backlog，然后运行 `{{PYTHON}} scripts/check-project-harness.py --root . --profile auto`。
+- do_not: 不把模板占位内容当作项目事实；不读 `.harness/history/`（除非命中 `AGENTS.md` 的检索触发条件）。
+- open_questions: `PROGRESS.md#open-unknowns`。
+- verify: `INSTRUCTIONS.md#verification`。

@@ -1,0 +1,50 @@
+# Docs Index
+
+本目录是 `{{PROJECT_NAME}}` 的稳定文档地图。决定文档归属、权限或当前状态时先读本页。
+
+## Authority Layers
+
+| Layer | Path | Role | Authority |
+| --- | --- | --- | --- |
+| Stable project rules | `../AGENTS.md`, `../INSTRUCTIONS.md` | 启动规则、项目章程与不可协商边界 | 当前权威入口 |
+| Current state | `../PROGRESS.md`, `../HANDOFF.md` | 状态板（只记已为真的事实）与交接包（固定字段、整体重写、开工即过期） | 当前状态权威；不是运行时数据源 |
+| History ledger | `../.harness/history/log.jsonl` | 追加式事件账本（里程碑、验证、交接、决策） | 只能经 `scripts/harness_log.py` 读写；执行任务默认不读，按 `AGENTS.md` 触发条件检索 |
+| Product requirements | `prd/` | 为什么做与成功是什么；目标与非目标归决策者所有 | 意图权威；仅 Accepted 的 PRD 可作 proposed 计划的 Source evidence，任何状态都不授权实施 |
+| Decisions | `decisions/` | 架构、范围和治理决策；三者分工是 PRD 讲为什么和成功是什么，Decisions 讲架构、范围、治理取舍，Specs 讲系统必须表现的行为 | 仅明确标记 Accepted 的决策具有约束力 |
+| Behavior specs | `specs/` | 系统必须表现的行为契约，条目分 proposed 与 settled | 意图权威，不是状态权威；settled 条目必须带验证指针，实现选择不进本目录 |
+| Exec plans | `exec-plans/` | proposed、active、completed 与 reviews 生命周期 | 大型/敏感工作需位于 active 的已批准计划；小型工作按 `AGENTS.md` 任务分级直接执行，无需进入本目录 |
+| Optimization intake | `optimization/` | 摩擦和改进想法记录 | 只记录，不授权实施 |
+| Progress archive | `progress-archive/` | 长篇散文证据（postmortem、评审记录）；事件历史在账本 | 证据检索；当前状态仍在根状态文件 |
+
+### 意图层冲突规则
+
+- 意图层内部（`prd/`、标记 Accepted 的 decision、`specs/`）不设自动优先级。三者相互冲突时记为 blocking 项交决策者裁定，agent 不得自行挑一份当权威。裁定结果登记为一条 Accepted decision，并更新落败的那份产物：改 PRD 对应段落、改 SPEC 对应条目，或把旧 decision 状态改为 Superseded。落败产物更新完成即解除该 blocking；解除权限属决策者。
+- 意图与事实不一致（例如 settled 的 SPEC 条目与 git、测试结果或 `../PROGRESS.md` 相左）不是优先级问题，是待办：按所属计划或 phase 的验收规则处理，不进入本条裁定流程。
+- 当前实施授权只来自位于 `exec-plans/active/` 的计划或用户的直接请求。意图层文件无论处于什么状态都不授予实施授权。
+
+## Entry Points
+
+- Exec-plan lifecycle: `exec-plans/roadmap.md`
+- Proposed plans: `exec-plans/proposed/index.md`
+- Active plans: `exec-plans/active/index.md`
+- Completed plans: `exec-plans/completed/index.md`
+- Reviews: `exec-plans/reviews/index.md`
+- PRD index: `prd/index.md`
+- Decisions: `decisions/index.md`
+- Spec index: `specs/index.md`
+- Optimization intake: `optimization/SOP.md`
+- Progress archive: `progress-archive/index.md`
+
+## Placement Rules
+
+- 小型、低风险、用户明确请求的工作按 `AGENTS.md` 任务分级直接执行，不产生计划或评审文件。
+- 改进想法只在用户启用记录模式时进入 `optimization/`。
+- PRD 只在用户明确要求、或用户指定某个范围需要产品需求文档时才创建到 `prd/`；agent 不得因为任务变大而自行起草。
+- SPEC 条目由 governed 计划在 phase 边界写入 `specs/`；直接执行与轻量计划级别的任务不写。
+- `prd/index.md` 或 `specs/index.md` 出现非模板行即视为本项目启用 PRD/SPEC 文档层；未启用时 phase 边界的 SPEC 同步是 no-op，不创建目录内容。
+- 只有用户明确要求转化的范围才能起草到 `exec-plans/proposed/`。
+- 计划含会约束后续 phase 或后续计划的取舍时，写进计划的 `## Decisions` 段并在 `decisions/index.md` 登记一行；仅当取舍跨多个计划、在计划之外产生、或要推翻已 Accepted 的旧决策时才在 `decisions/` 建独立文件。
+- proposed 计划与 review 文件本身都不授权实施。
+- 用户的一次明确批准可同时覆盖 review 确认与激活；获批后计划移动到 `active/` 并立即可执行，不追加确认轮次。
+- 完成、终止、拒绝或被取代的计划移动到 `completed/`；review 历史保留。
+- 事件历史经 `scripts/harness_log.py append` 进账本；仅长篇证据文档进入 `progress-archive/` 并保留索引与账本 refs。不得让启动文档无限增长。

@@ -1,0 +1,63 @@
+# Progress
+
+本文件是项目状态板：只记录**已经为真**的最新事实与证据。会话意图（下一步做什么）只写 `HANDOFF.md`；历史操作在账本 `.harness/history/log.jsonl`，经 `{{PYTHON}} scripts/harness_log.py query` 按需检索，禁止整卷读取。冲突优先级：当前权威材料/交付物核验（适用时含 Git/测试） > 本文件 > `HANDOFF.md` > 聊天记忆。
+
+每条一行、一个事实、一个证据链接；Facts 和 In Progress 每条不超过 900 字节，超了拆成“事实 + 链接”。
+
+## Facts
+
+当前为真的项目级事实（架构选型、关键配置、环境约束）。首次接管校准时以仓库证据填充；不从模板虚构。
+
+- {{DATE}}：已安装 `{{PROFILE}}` harness 基础结构；未重写项目历史，不宣称既有功能已完成。
+
+## In Progress
+
+进行中的多步工作只记录"已完成到哪一步"（事实），不写下一步意图。长任务写明任务标识（进程、作业或批次号）、日志与产物位置，接手时据此核实它是否仍在跑、停在哪。
+
+- 无。
+
+## Blocked
+
+每条阻塞必须带证据和解除条件。
+
+- 无。
+
+## Backlog
+
+项目级已知未开始的工作项。"存在这些活"是事实；执行顺序与下一步指令在 `HANDOFF.md`。
+
+- [ ] 首次接管校准：核对项目目标、已有成果、验收方式、阻塞。
+- [ ] 运行项目实际产物核验并把结果记入 Verified Baseline。
+
+## Open Unknowns
+
+- 验收方式是否覆盖本项目实际产物（待核对）。
+
+## Verified Baseline
+
+| Check / Command | Last result | Date |
+| --- | --- | --- |
+| `{{PYTHON}} scripts/check-project-harness.py --root . --profile auto` | pending | — |
+
+## Completed (Rolling Window)
+
+只保留最近的已完成条目。`{{PYTHON}} scripts/check-startup-doc-budget.py --root .` 报告 `archive_required=true` 时，把最老条目经 `{{PYTHON}} scripts/harness_log.py append --type milestone --summary "..." --evidence "..."` 迁入账本后从本文件删除，并更新 Ledger Pointers。
+
+- [x] {{DATE}} — 安装缺失的 `{{PROFILE}}` harness 文件；未覆盖已有文件。
+
+## Ledger Pointers
+
+| Migrated range | Where |
+| --- | --- |
+| 无 | `{{PYTHON}} scripts/harness_log.py query --type milestone` |
+
+## Navigation
+
+| Need | Location |
+| --- | --- |
+| Stable rules + learned constraints | `INSTRUCTIONS.md` |
+| Session transfer packet | `HANDOFF.md` |
+| History ledger (query only) | `{{PYTHON}} scripts/harness_log.py query --grep <kw>` |
+| Open external-write intents | `{{PYTHON}} scripts/harness_log.py pending` |
+| Harness configuration | `.harness/config.json` |
+| Detailed project docs | `docs/` |

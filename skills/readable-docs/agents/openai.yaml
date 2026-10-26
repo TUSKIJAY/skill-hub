@@ -1,0 +1,4 @@
+interface:
+  display_name: "readable-docs"
+  short_description: "Install and apply readable-writing rules for human-facing docs"
+  default_prompt: "Use $readable-docs to audit this project and install its readable-writing rules, previewing before any write."

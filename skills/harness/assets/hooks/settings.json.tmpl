@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{{HOOK_HANDLER_JSON}}]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{{HOOK_HANDLER_JSON}}]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{{HOOK_HANDLER_JSON}}]
+      }
+    ]
+  }
+}

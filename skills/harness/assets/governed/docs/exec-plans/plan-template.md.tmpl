@@ -1,0 +1,84 @@
+# <Plan Title>
+
+- Status: Proposed
+- Owner: <owner>
+- Created: YYYY-MM-DD
+- Scope authority: review-only; this template and proposed plan do not authorize implementation
+- Depth ceiling: a Proposed plan commits only to direction, immovable boundaries, phase-level behavioral exit gates, and the names of the verification procedures or test suites that will check them. Field-level or element-level contracts may be written early only when the plan names the existing verification procedure or test that will check them; otherwise record them as assumptions to be settled in the implementing phase, not as frozen contracts.
+
+## 1. Context And Evidence
+
+- Current state:
+- Source evidence: <!-- 可引用 `docs/prd/<slug>.md`，但该 PRD 须为 Accepted；Draft 状态的 PRD 不能作为证据。 -->
+- Constraining decisions: <!-- 列出 `docs/decisions/index.md` 中约束本范围的 Accepted 条目（Decision 与 Location 列）；没有则写 None。 -->
+- Why now:
+
+## 2. Objective
+
+- In scope:
+- Out of scope:
+- Non-goals:
+
+## 3. Constraints And Invariants
+
+<!-- 本节写「不能变的行为」，不写「哪个字段或元素允许差异」。字段级或元素级的差异契约属实现 phase 的 Work 项，写在这里等于在核验方法存在之前就冻结它。 -->
+
+- Existing behavior that must remain unchanged:
+- Safety/data/compatibility boundaries:
+- Unrelated paths to preserve:
+
+## 4. Decisions
+
+<!-- 本节只登记会约束后续 phase 或后续计划的方向性取舍；只影响当前 phase 实现细节的选择不写在这里。没有则写 None。每条都必须同时在 `docs/decisions/index.md` 登记一行，Location 写 `<plan-slug>#D<n>`：登记是硬性要求，不是可选步骤。本节是决策正文的所在，约束力以该 index 为权威。 -->
+
+### D1 — <取舍一句话>
+
+- 取舍：
+- 否掉的备选与理由：
+- 约束范围（受它约束的 phase、文件或后续计划）：
+
+### D2 — <取舍一句话>
+
+- 取舍：
+- 否掉的备选与理由：
+- 约束范围：
+
+## 5. Phases
+
+<!-- 小范围计划可在此注明合并 phase 执行；phase 数量应匹配实际风险，而不是模板结构。 -->
+
+### Phase 0 — Baseline And Scope Freeze
+
+- Entry gate:
+- Work:
+- Verification:
+- Exit gate:
+
+### Phase 1 — Implementation
+
+- Entry gate:
+- Work:
+- Verification:
+- Exit gate: <!-- 可指向 `docs/specs/` 中本 phase 转为 settled 的条目 ID。 -->
+
+### Phase 2 — Closeout
+
+- Entry gate:
+- Work:
+- Verification:
+- Exit gate:
+
+## 6. Evidence And Recovery Plan
+
+- Baseline checks:
+- Focused checks:
+- Full checks:
+- Expected state/handoff updates:
+- Recovery/version boundaries (commits only where Git is used):
+
+## 7. Review And Activation Gate
+
+- Review location: `docs/exec-plans/reviews/<plan-slug>/`（仅在需要独立评审时创建）
+- Required verdict:
+- Required user approval: 用户可在一次答复中同时批准 review 与 activation（例如「批准并执行」）。
+- 获批后计划即为 active，可立即开始实施，无需额外确认轮次。

@@ -1,0 +1,44 @@
+{
+  "schema_version": "readable-docs-config-v1",
+  "skill_version": "0.1.0",
+  "language": "zh",
+  "human_facing": {
+    "include": ["**/*.md"],
+    "exclude": ["**/node_modules/**", "**/.git/**", "CHANGELOG.md"]
+  },
+  "frozen": [],
+  "id_kinds": [
+    {"name": "task-card", "pattern": "TASK-\\d+", "lookup": [{"type": "file-title", "hint": "任务卡文件的一级标题"}]},
+    {"name": "decision", "pattern": "#D\\d+|\\bD\\d{3,}\\b", "lookup": [{"type": "table", "file": "docs/decisions/index.md"}]},
+    {"name": "hex-ref", "pattern": "`(?=[0-9A-Fa-f]*\\d)[0-9A-Fa-f]{6,12}`", "lookup": [{"type": "git", "run": "git log -1 --format=%s {id}"}]}
+  ],
+  "terms": {
+    "distinct": [],
+    "allow": [],
+    "define": {}
+  },
+  "rules": {
+    "bare-id-run": "warn",
+    "first-mention": "warn",
+    "unregistered-id": "warn",
+    "semicolon": "warn",
+    "long-sentence": "warn",
+    "nominalization": "warn",
+    "marketing-adjective": "warn",
+    "empty-phrase": "warn",
+    "synonym-rotation": "warn",
+    "passive-voice": "warn",
+    "compound-aspect": "warn",
+    "vague-word": "warn",
+    "halfwidth-punct": "warn",
+    "dash-join": "warn"
+  },
+  "max_chars": {"instruction": 25, "explanation": 40},
+  "check": {"changed_only": true},
+  "card": {
+    "human_facing_kinds": "方案、计划、评审回复、研究报告和汇报",
+    "id_example": "TASK-003（SD 卡挂载）",
+    "registry_link": "readable-docs.json"
+  },
+  "templates": []
+}

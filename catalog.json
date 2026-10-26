@@ -420,6 +420,46 @@
       ],
       "lifecycle": "unconfirmed",
       "lifecycle_note": "仅完成文件盘点，尚未确认是否仍在使用。"
+    },
+    {
+      "id": "harness",
+      "title": "项目 Agent 工作规范",
+      "summary": "创建、审计和维护项目工作规范、进展交接与验证入口，支持可选任务卡和 Claude Code hooks。",
+      "category": "development",
+      "kind": "managed",
+      "path": "skills/harness",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.agents/skills/harness",
+        "captured_at": "2026-10-26",
+        "upstream": null,
+        "license": "not-yet-recorded"
+      },
+      "requirements": [
+        "Python 3.9+ 标准库"
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "用户于 2026-10-26 要求上传；使用状态尚未单独确认。"
+    },
+    {
+      "id": "readable-docs",
+      "title": "中文文档可读性",
+      "summary": "给项目接入编号说明与中文句式规则，支持旧文档转换、规则升级和文字改写。",
+      "category": "documents",
+      "kind": "managed",
+      "path": "skills/readable-docs",
+      "origin": {
+        "kind": "local-snapshot",
+        "location": "~/.agents/skills/readable-docs",
+        "captured_at": "2026-10-26",
+        "upstream": null,
+        "license": "See NOTICE.md for adapted MIT portions"
+      },
+      "requirements": [
+        "Python 3.9+ 标准库"
+      ],
+      "lifecycle": "unconfirmed",
+      "lifecycle_note": "用户于 2026-10-26 要求上传；使用状态尚未单独确认。"
     }
   ]
 }

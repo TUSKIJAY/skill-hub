@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+"""Read a text file within the project's context budget.
+
+  outline FILE          total lines and bytes, a verdict, then the Markdown headings (other files: the first lines)
+  lines FILE START END  that line range, numbered
+  head FILE [N]         total lines and bytes, then the first N lines
+
+Every call prints at most `output_lines` lines and `output_bytes` bytes of body (a first line that does
+not fit is cut to the bytes left), cuts a line longer than `line_bytes`, and ends with the line where
+the next segment starts when there is more. Text
+only: a NUL byte in the first 8 KiB means binary, which is refused with exit code 2. Files are read
+as UTF-8 (BOM allowed, bad bytes replaced). Limits come from `context_budget` in
+.harness/config.json, field by field, falling back to the values written at install.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+# Written at install; `.harness/config.json` `context_budget` overrides them field by field.
+DEFAULT_BUDGET = {{CONTEXT_BUDGET_INLINE}}
+NUMBER_KEYS = ("file_lines", "file_bytes", "output_lines", "output_bytes", "head_lines", "line_bytes")
+PYTHON_COMMAND = {{PYTHON_JSON}}
+SELF = "scripts/harness_read.py"
+CONFIG = Path(__file__).resolve().parents[1] / ".harness" / "config.json"
+SNIFF_BYTES = 8192
+CHUNK_BYTES = 1 << 20
+UTF8_BOM = b"\xef\xbb\xbf"
+MARKDOWN_SUFFIXES = (".md", ".markdown", ".mdx")
+HEADING = re.compile(r"^#{1,6}(\s|$)")
+FENCES = ("```", "~~~")
+EXIT_OK = 0
+EXIT_NOT_FOUND = 1
+EXIT_USAGE = 2
+
+
+def ensure_utf8_stdio() -> None:
+    """Force UTF-8 stdout/stderr so Chinese text survives a GBK console or pipe."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError) as exc:
+            print(f"WARNING: cannot switch output to UTF-8: {exc}", file=sys.stderr)
+
+
+def load_budget() -> dict[str, object]:
+    """Install-time defaults overlaid with the valid fields of the config block."""
+    budget = dict(DEFAULT_BUDGET)
+    try:
+        config = json.loads(CONFIG.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return budget
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        print(f"警告：读不了 {CONFIG}（{exc}），用安装时的默认值", file=sys.stderr)
+        return budget
+    block = config.get("context_budget") if isinstance(config, dict) else None
+    if block is None:
+        return budget
+    if not isinstance(block, dict):
+        print("警告：context_budget 不是对象，用安装时的默认值", file=sys.stderr)
+        return budget
+    for key in NUMBER_KEYS:
+        if key not in block:
+            continue
+        value = block[key]
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            budget[key] = value
+        else:
+            print(f"警告：context_budget.{key}={value!r} 不是正整数，改用 {budget[key]}", file=sys.stderr)
+    return budget
+
+
+def file_stats(path: Path) -> tuple[int, int]:
+    """(lines, bytes), counted in chunks so a huge file is never held whole."""
+    lines = 0
+    last = b""
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(CHUNK_BYTES)
+            if not chunk:
+                break
+            lines += chunk.count(b"\n")
+            last = chunk
+    if last and not last.endswith(b"\n"):
+        lines += 1
+    return lines, path.stat().st_size
+
+
+def clip(content: bytes, total: int, limit: int) -> str:
+    """Decode a line; past `limit` bytes keep a prefix ending on a character boundary and mark the rest."""
+    if total <= limit:
+        return content.decode("utf-8", errors="replace")
+    cut = min(limit, len(content))
+    while 0 < cut < len(content) and (content[cut] & 0xC0) == 0x80:
+        cut -= 1
+    return f"{content[:cut].decode('utf-8', errors='replace')}…[+{total - cut} 字节]"
+
+
+def read_lines(path: Path, line_bytes: int, start: int = 1):
+    """Yield (number, content, total) from line `start` on: at most line_bytes + 2 leading bytes of the
+    line without its line break, and the line's full length. A long line is read in chunks, never whole."""
+    with path.open("rb") as handle:
+        number = 0
+        while True:
+            head = handle.readline(line_bytes + 2)
+            if not head:
+                return
+            number += 1
+            size = len(head)
+            ended = head.endswith(b"\n")
+            while not ended:
+                chunk = handle.readline(CHUNK_BYTES)
+                if not chunk:
+                    break
+                size += len(chunk)
+                ended = chunk.endswith(b"\n")
+            if number < start:
+                continue
+            if number == 1 and head.startswith(UTF8_BOM):
+                head = head[len(UTF8_BOM):]
+                size -= len(UTF8_BOM)
+            if len(head) == size:
+                content = head[:-1] if ended else head
+                if content.endswith(b"\r"):
+                    content = content[:-1]
+                yield number, content, len(content)
+            else:
+                yield number, head, size - (1 if ended else 0)
+
+
+class Body:
+    """Numbered body lines within the line and byte caps.
+
+    Each line is cut at `line_bytes`. A line that no longer fits the byte budget stops the body, except
+    the first one, which is cut to the bytes left and marked. So the body never exceeds `output_bytes`
+    apart from that one fixed-length cut marker; the summary and next-segment lines come on top.
+    """
+
+    def __init__(self, budget: dict[str, object]) -> None:
+        self.max_lines = int(budget["output_lines"])
+        self.max_bytes = int(budget["output_bytes"])
+        self.line_bytes = int(budget["line_bytes"])
+        self.lines = 0
+        self.bytes = 0
+
+    def add(self, number: int, content: bytes, total: int) -> bool:
+        if self.lines >= self.max_lines:
+            return False
+        label = f"{number}: "
+        text = label + clip(content, total, self.line_bytes)
+        size = len(text.encode("utf-8")) + 1
+        if self.bytes + size > self.max_bytes:
+            if self.lines:
+                return False
+            room = max(0, self.max_bytes - len(label.encode("utf-8")) - 1)
+            text = label + clip(content, total, min(self.line_bytes, room))
+            size = self.max_bytes
+        print(text)
+        self.lines += 1
+        self.bytes += size
+        return True
+
+
+def lines_command(file: str, start: object = "<起>", end: object = "<止>") -> str:
+    return f'{PYTHON_COMMAND} {SELF} lines "{file}" {start} {end}'
+
+
+def print_next(file: str, start: int, budget: dict[str, object]) -> None:
+    end = start + int(budget["output_lines"]) - 1
+    print(f"下一段从第 {start} 行开始：{lines_command(file, start, end)}")
+
+
+def print_numbered(path: Path, file: str, budget: dict[str, object], start: int, end: int, more: bool) -> None:
+    """Lines start..end; the next-segment line follows when the caps stop early or `more` is set."""
+    body = Body(budget)
+    for number, content, total in read_lines(path, int(budget["line_bytes"]), start):
+        if number > end:
+            break
+        if not body.add(number, content, total):
+            print_next(file, number, budget)
+            return
+    if more:
+        print_next(file, end + 1, budget)
+
+
+def cmd_outline(path: Path, file: str, budget: dict[str, object]) -> int:
+    total_lines, total_bytes = file_stats(path)
+    file_lines, file_bytes = budget["file_lines"], budget["file_bytes"]
+    if total_lines <= int(file_lines) and total_bytes <= int(file_bytes):
+        verdict = f"在预算内（不超过 {file_lines} 行且不超过 {file_bytes} 字节），可以整读。"
+    else:
+        verdict = (f"超预算（整读上限 {file_lines} 行、{file_bytes} 字节），用 lines 分段读，"
+                   f"一次最多 {budget['output_lines']} 行：{lines_command(file)}")
+    print(f"共 {total_lines} 行，{total_bytes} 字节。{verdict}")
+    if total_lines == 0:
+        return EXIT_OK
+    shown = min(int(budget["head_lines"]), total_lines)
+    if path.suffix.lower() not in MARKDOWN_SUFFIXES:
+        print(f"前 {shown} 行：")
+        print_numbered(path, file, budget, 1, shown, more=total_lines > shown)
+        return EXIT_OK
+    # Count every heading but keep only what can be printed, plus one to say where the next segment starts.
+    keep = int(budget["output_lines"]) + 1
+    kept: list[tuple[int, bytes, int]] = []
+    count = 0
+    fence = ""
+    line_bytes = int(budget["line_bytes"])
+    for number, content, total in read_lines(path, line_bytes):
+        text = content[:line_bytes].decode("utf-8", errors="replace")
+        marker = next((mark for mark in FENCES if text.lstrip().startswith(mark)), "")
+        if marker:
+            fence = "" if fence == marker else (fence or marker)
+            continue
+        if not fence and HEADING.match(text):
+            count += 1
+            if len(kept) < keep:
+                kept.append((number, content, total))
+    if not count:
+        print(f"没有标题，下面是前 {shown} 行：")
+        print_numbered(path, file, budget, 1, shown, more=total_lines > shown)
+        return EXIT_OK
+    print(f"标题 {count} 个（行号: 标题）：")
+    body = Body(budget)
+    for number, content, total in kept:
+        if not body.add(number, content, total):
+            print_next(file, number, budget)
+            break
+    return EXIT_OK
+
+
+def cmd_lines(path: Path, file: str, budget: dict[str, object], start: int, end: int) -> int:
+    if start < 1 or end < start:
+        print(f"起止行无效：{start} {end}（要求 1 <= 起 <= 止）", file=sys.stderr)
+        return EXIT_USAGE
+    total_lines, _ = file_stats(path)
+    if start > total_lines:
+        print(f"第 {start} 行超出文件末尾（共 {total_lines} 行）", file=sys.stderr)
+        return EXIT_NOT_FOUND
+    print_numbered(path, file, budget, start, min(end, total_lines), more=False)
+    return EXIT_OK
+
+
+def cmd_head(path: Path, file: str, budget: dict[str, object], count: int | None) -> int:
+    count = int(budget["head_lines"]) if count is None else count
+    if count < 1:
+        print(f"行数无效：{count}（要求至少 1）", file=sys.stderr)
+        return EXIT_USAGE
+    total_lines, total_bytes = file_stats(path)
+    shown = min(count, total_lines)
+    print(f"共 {total_lines} 行，{total_bytes} 字节。前 {shown} 行：")
+    if shown:
+        print_numbered(path, file, budget, 1, shown, more=total_lines > shown)
+    return EXIT_OK
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    commands = parser.add_subparsers(dest="command", required=True)
+    outline = commands.add_parser("outline", help="Total size, verdict, then headings or first lines")
+    outline.add_argument("file")
+    lines = commands.add_parser("lines", help="Print one numbered line range")
+    lines.add_argument("file")
+    lines.add_argument("start", type=int)
+    lines.add_argument("end", type=int)
+    head = commands.add_parser("head", help="Total size, then the first N lines")
+    head.add_argument("file")
+    head.add_argument("count", nargs="?", type=int, default=None)
+    args = parser.parse_args(argv)
+
+    path = Path(args.file)
+    try:
+        with path.open("rb") as handle:
+            sample = handle.read(SNIFF_BYTES)
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError):
+        print(f"找不到文件：{args.file}", file=sys.stderr)
+        return EXIT_NOT_FOUND
+    except OSError as exc:
+        print(f"读不了：{args.file}（{exc}）", file=sys.stderr)
+        return EXIT_NOT_FOUND
+    if b"\0" in sample:
+        print(f"二进制文件，不读：{args.file}", file=sys.stderr)
+        return EXIT_USAGE
+    budget = load_budget()
+    try:
+        if args.command == "outline":
+            return cmd_outline(path, args.file, budget)
+        if args.command == "lines":
+            return cmd_lines(path, args.file, budget, args.start, args.end)
+        return cmd_head(path, args.file, budget, args.count)
+    except OSError as exc:
+        print(f"读不了：{args.file}（{exc}）", file=sys.stderr)
+        return EXIT_NOT_FOUND
+
+
+if __name__ == "__main__":
+    ensure_utf8_stdio()
+    raise SystemExit(main())

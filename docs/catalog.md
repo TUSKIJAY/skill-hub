@@ -21,3 +21,5 @@
 | `task-decomposer` | planning | 使用状态待确认 | 把模糊想法梳理成明确目标，再拆成可执行任务。 |
 | `kline-extract` | research | 使用状态待确认 | 从交易图截图提取结构化数据，并绘制可核对的 SVG 图表。 |
 | `target-research-workflow` | research | 使用状态待确认 | 组织股票、ETF 等标的的筛选、研究与分析流程。 |
+| `harness` | development | 使用状态待确认 | 创建、审计和维护项目工作规范、进展交接与验证入口，支持可选任务卡和 Claude Code hooks。 |
+| `readable-docs` | documents | 使用状态待确认 | 给项目接入编号说明与中文句式规则，支持旧文档转换、规则升级和文字改写。 |

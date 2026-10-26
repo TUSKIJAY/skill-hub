@@ -1,0 +1,456 @@
+#!/usr/bin/env python3
+"""Opt-in Claude Code hook for the project harness: silent when a rule holds, blocks when it breaks.
+
+Claude Code passes one JSON object on stdin (`hook_event_name`, `tool_name`, `tool_input`, `cwd`,
+`stop_hook_active`, ...). Exit 0 with no output lets the action go ahead; exit 2 blocks it and the
+stderr lines (at most three) tell the agent why and what to do instead.
+
+- PreToolUse Edit/Write/MultiEdit: no direct write to the ledger; with task cards configured, no
+  agent-recorded result (已通过/未通过) or 记录人 on a `human` acceptance item.
+- PreToolUse Bash/PowerShell: no shell write to the ledger (redirect, tee, sed -i, cp/mv/rm,
+  Set-Content/Add-Content/Out-File, ...); and, only when `.harness/config.json` `hooks.external_writes`
+  lists command fragments, a matching command needs an open `intent` as the ledger's last entry. With
+  `hooks.gated_actions` declared, a matching command asks the user first (permissionDecision `ask`);
+  a run that cannot prompt denies it.
+- PostToolUse Bash/PowerShell (optional; not in the default settings): re-run the task-card lint after
+  a command that names the card directory. It reports after the fact; it cannot undo the command.
+- Stop: `scripts/check-project-harness.py`, `scripts/check-startup-doc-budget.py --strict` and
+  `scripts/harness_log.py pending` must pass; skipped when `stop_hook_active` is set.
+- `--git-pre-commit`: the first two checks plus "the ledger is append-only" for a Git pre-commit hook,
+  for CLIs without hooks. Open intents do not stop a commit.
+
+Limits: this sees only the agent's own tool calls and cannot prove who wrote a result. A shell
+heredoc or a script can still change a file unseen; stronger guarantees need file-system
+permissions or the business system. `"hooks": {"enabled": false}` in the config turns every rule off.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+CONFIG = ROOT / ".harness" / "config.json"
+LEDGER = ROOT / ".harness" / "history" / "log.jsonl"
+LEDGER_SUFFIX = ".harness/history/log.jsonl"
+PYTHON = {{PYTHON_JSON}}
+READ_ENCODING = "utf-8-sig"
+EXIT_ALLOW = 0
+EXIT_BLOCK = 2
+MAX_LINES = 3
+CHECK_TIMEOUT_SECONDS = 120
+RECORDED_STATES = ("已通过", "未通过")
+
+{{TASK_CARD_CONSTANTS}}
+
+{{TASK_CARD_LINT}}
+
+
+def ensure_utf8_stdio() -> None:
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
+def load_config() -> dict:
+    try:
+        config = json.loads(CONFIG.read_text(encoding=READ_ENCODING))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    return config if isinstance(config, dict) else {}
+
+
+def block(*lines: str) -> int:
+    for line in [line for line in lines if line][:MAX_LINES]:
+        print(line, file=sys.stderr)
+    return EXIT_BLOCK
+
+
+def normalize(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def resolved(path_text: str, cwd: str | None) -> Path | None:
+    text = path_text.strip().strip("\"'")
+    if not text:
+        return None
+    path = Path(text.replace("\\", "/"))
+    if not path.is_absolute():
+        path = Path(cwd or ROOT) / path
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError):
+        return None
+
+
+def is_ledger(path_text: str, cwd: str | None) -> bool:
+    text = path_text.strip().strip("\"'").replace("\\", "/")
+    if text.endswith(LEDGER_SUFFIX):
+        return True
+    if not text.endswith("log.jsonl"):
+        return False
+    return resolved(text, cwd) == LEDGER.resolve()
+
+
+# -- file tools --------------------------------------------------------------------------------
+
+
+def edited_text(tool: str, tool_input: dict, path: Path) -> str | None:
+    """The file text the tool call would leave behind; None when it cannot be worked out."""
+    if tool == "Write":
+        content = tool_input.get("content")
+        return normalize(content) if isinstance(content, str) else None
+    if tool == "Edit":
+        edits = [tool_input]
+    elif tool == "MultiEdit":
+        edits = tool_input.get("edits") if isinstance(tool_input.get("edits"), list) else []
+    else:
+        return None
+    try:
+        text = normalize(path.read_text(encoding=READ_ENCODING))
+    except (OSError, UnicodeDecodeError):
+        return None
+    for edit in edits:
+        if not isinstance(edit, dict):
+            return None
+        old, new = edit.get("old_string"), edit.get("new_string")
+        if not isinstance(old, str) or not isinstance(new, str):
+            return None
+        old, new = normalize(old), normalize(new)
+        text = text.replace(old, new) if edit.get("replace_all") else text.replace(old, new, 1)
+    return text
+
+
+def card_rows(text: str) -> dict[str, dict[str, str]]:
+    rows, _ = acceptance_rows(text)
+    return {row.get("ID", "").strip(): row for row in rows if row.get("ID", "").strip()}
+
+
+def human_changes(old_text: str, new_text: str) -> list[str]:
+    """IDs of human items whose 状态 became 已通过/未通过 or whose 记录人 changed in this edit."""
+    before = card_rows(old_text)
+    changed: list[str] = []
+    for key, row in card_rows(new_text).items():
+        previous = before.get(key, {})
+        # An item that was human stays human for this rule, so changing 方式 first is no way around it.
+        methods = {row.get("方式", ""), previous.get("方式", "")}
+        if not any(method.strip().strip("`").lower() == "human" for method in methods):
+            continue
+        state = row.get("状态", "").strip()
+        recorder = row.get("记录人", "").strip()
+        state_set = state in RECORDED_STATES and state != previous.get("状态", "").strip()
+        recorder_set = not is_blank(recorder) and recorder != previous.get("记录人", "").strip()
+        if state_set or recorder_set:
+            changed.append(key)
+    return changed
+
+
+def task_card_path(path: Path, config: dict) -> bool:
+    spec = config.get("task_cards")
+    directory = spec.get("dir") if isinstance(spec, dict) else None
+    if not isinstance(directory, str) or not directory.strip():
+        return False
+    base = (ROOT / directory.strip()).resolve()
+    return path.parent == base and path.name.startswith("TASK-") and path.suffix == ".md"
+
+
+def check_file_tool(payload: dict, config: dict) -> int:
+    tool = payload.get("tool_name")
+    tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+    file_path = tool_input.get("file_path")
+    if not isinstance(file_path, str):
+        return EXIT_ALLOW
+    if is_ledger(file_path, payload.get("cwd")):
+        return block("Blocked: the ledger .harness/history/log.jsonl is append-only and written only by its script.",
+                     f'Use: {PYTHON} scripts/harness_log.py append --type <type> --summary "..." --evidence "..."')
+    path = resolved(file_path, payload.get("cwd"))
+    if path is None or not task_card_path(path, config):
+        return EXIT_ALLOW
+    new_text = edited_text(str(tool), tool_input, path)
+    if new_text is None:
+        return EXIT_ALLOW
+    try:
+        old_text = normalize(path.read_text(encoding=READ_ENCODING)) if path.is_file() else ""
+    except (OSError, UnicodeDecodeError):
+        old_text = ""
+    changed = human_changes(old_text, new_text)
+    if not changed:
+        return EXIT_ALLOW
+    return block(f"Blocked: this edit records a result or 记录人 for human acceptance item(s) {', '.join(changed)} "
+                 f"in {path.name}.",
+                 "Only a person records human acceptance (状态 已通过/未通过, 记录人, 证据位置) on the card; "
+                 "leave the item 待人工验收 and ask them to record it.")
+
+
+# -- shell tools ---------------------------------------------------------------------------------
+
+SEGMENT_SPLIT = re.compile(r"\|\||&&|[|;\n]")
+TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|[^\s\"']+")
+REDIRECT = re.compile(r"(?<![0-9&<>])(?:[0-9]?>>?|>\|)\s*(\"[^\"]*\"|'[^']*'|[^\s;|&<>]+)")
+# Commands that change any file named among their arguments.
+WRITERS_ANY_ARG = {"tee", "rm", "mv", "truncate", "shred", "set-content", "add-content", "out-file",
+                   "clear-content", "remove-item", "move-item", "rename-item", "new-item", "sc", "ac", "ri", "del",
+                   "erase", "ren", "move"}
+# Commands that change only their last argument (the destination).
+WRITERS_LAST_ARG = {"cp", "install", "copy-item", "copy", "cpi", "rsync"}
+IN_PLACE = {"sed", "perl", "ruby", "gsed"}
+PY_WRITE = re.compile(r"""(?:open\([^)]*['"][wax]\+?b?['"]|write_text|write_bytes|WriteAllText|AppendAllText|WriteAllLines|AppendAllLines)""")
+
+
+def segments(command: str) -> list[str]:
+    return [part.strip() for part in SEGMENT_SPLIT.split(command) if part.strip()]
+
+
+def tokens(segment: str) -> list[str]:
+    return [token.strip("\"'") for token in TOKEN.findall(segment)]
+
+
+def program(words: list[str]) -> str:
+    """The command word of a segment, past `sudo`/`env`/assignments, lower-cased, without a path."""
+    for word in words:
+        if "=" in word and not word.startswith("-"):
+            continue
+        if word in ("sudo", "env", "command", "&", "."):
+            continue
+        return word.replace("\\", "/").rsplit("/", 1)[-1].lower().removesuffix(".exe")
+    return ""
+
+
+def ledger_write(command: str, cwd: str | None) -> bool:
+    for segment in segments(command):
+        if "log.jsonl" not in segment:
+            continue
+        if any(is_ledger(target, cwd) for target in REDIRECT.findall(segment)):
+            return True
+        words = tokens(segment)
+        name = program(words)
+        args = [word for word in words[1:] if not word.startswith("-")]
+        if name in WRITERS_ANY_ARG and any(is_ledger(word, cwd) for word in args):
+            return True
+        if name in WRITERS_LAST_ARG and args and is_ledger(args[-1], cwd):
+            return True
+        if name in IN_PLACE and any(re.fullmatch(r"-[a-zA-Z]*i\S*", word) or word.startswith("--in-place")
+                                    for word in words) and any(is_ledger(word, cwd) for word in args):
+            return True
+        if name.startswith("dd") and any(word.startswith("of=") and is_ledger(word[3:], cwd) for word in words):
+            return True
+        if PY_WRITE.search(segment) and (LEDGER_SUFFIX in segment.replace("\\", "/") or "log.jsonl" in segment):
+            return True
+    return False
+
+
+def last_entry_is_intent() -> bool:
+    try:
+        lines = [line for line in LEDGER.read_text(encoding=READ_ENCODING).splitlines() if line.strip()]
+    except (OSError, UnicodeDecodeError):
+        return False
+    entries = []
+    for line in lines:
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(item, dict) and isinstance(item.get("seq"), int):
+            entries.append(item)
+    return bool(entries) and max(entries, key=lambda item: item["seq"]).get("type") == "intent"
+
+
+def declared_fragment(command: str, config: dict, key: str) -> str | None:
+    """The fragment under hooks.<key> that a command segment contains, ignoring the ledger script's own calls."""
+    spec = config.get("hooks")
+    fragments = spec.get(key) if isinstance(spec, dict) else None
+    if not isinstance(fragments, list):
+        return None
+    fragments = [item for item in fragments if isinstance(item, str) and item.strip()]
+    for segment in segments(command):
+        if "harness_log.py" in segment:
+            continue
+        for fragment in fragments:
+            if fragment.strip() in segment:
+                return fragment.strip()
+    return None
+
+
+def external_write(command: str, config: dict) -> str | None:
+    """The declared external-write fragment a command matches."""
+    return declared_fragment(command, config, "external_writes")
+
+
+def ask(reason: str) -> int:
+    """PreToolUse: hand the call to the user (Claude Code prompts; a run that cannot prompt denies it)."""
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                             "permissionDecisionReason": reason}}, ensure_ascii=False))
+    return EXIT_ALLOW
+
+
+def check_shell(payload: dict, config: dict) -> int:
+    tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+    command = tool_input.get("command")
+    if not isinstance(command, str):
+        return EXIT_ALLOW
+    if ledger_write(command, payload.get("cwd")):
+        return block("Blocked: this command writes .harness/history/log.jsonl directly; the ledger is append-only.",
+                     f'Use: {PYTHON} scripts/harness_log.py append --type <type> --summary "..." --evidence "..."')
+    fragment = external_write(command, config)
+    if fragment and not last_entry_is_intent():
+        return block(f"Blocked: this command matches the declared external write {fragment!r}, and the ledger's "
+                     "last entry is not an open intent.",
+                     f'First: {PYTHON} scripts/harness_log.py append --type intent --summary "..." '
+                     '--evidence "<operation id or idempotency key>"; afterwards append the result with --closes <seq>.')
+    fragment = declared_fragment(command, config, "gated_actions")
+    if fragment:
+        return ask(f"恢复前闸门：这条命令匹配受控动作 {fragment!r}（昂贵或不可逆）。agent 应先说明预计成本和现有产物为何不够；"
+                   "是否执行由你决定。")
+    return EXIT_ALLOW
+
+
+def check_after_shell(payload: dict, config: dict) -> int:
+    """PostToolUse: re-lint the task cards after a command that names their directory."""
+    spec = config.get("task_cards")
+    directory = spec.get("dir") if isinstance(spec, dict) else None
+    tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
+    command = tool_input.get("command")
+    if not isinstance(directory, str) or not directory.strip() or not isinstance(command, str):
+        return EXIT_ALLOW
+    if directory.strip().strip("/") not in command.replace("\\", "/") and "TASK-" not in command:
+        return EXIT_ALLOW
+    failures = [item["label"] for item in lint_task_cards(ROOT) if not item["passed"]]
+    if not failures:
+        return EXIT_ALLOW
+    return block(f"Task-card lint fails after that command: {failures[0]}",
+                 "If the command changed a card, restore it; only a person records human acceptance.")
+
+
+# -- checks at Stop and pre-commit ---------------------------------------------------------------
+
+
+def run_check(script: str, *args: str) -> tuple[int, str, str] | None:
+    path = ROOT / "scripts" / script
+    if not path.is_file():
+        return None
+    try:
+        result = subprocess.run([sys.executable, str(path), *args], cwd=ROOT, capture_output=True,
+                                encoding="utf-8", errors="replace", timeout=CHECK_TIMEOUT_SECONDS)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 1, "", f"{script} did not finish: {exc}"
+    return result.returncode, result.stdout, result.stderr
+
+
+def first_line(text: str, *needles: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for needle in needles:
+        for line in lines:
+            if needle in line:
+                return line
+    return lines[0] if lines else ""
+
+
+def harness_check_problem() -> str | None:
+    outcome = run_check("check-project-harness.py", "--root", str(ROOT))
+    if outcome is None or outcome[0] == 0:
+        return None
+    code, stdout, stderr = outcome
+    detail = ""
+    try:
+        report = json.loads(stdout)
+        missing = report.get("missing") or []
+        failures = report.get("lint_failures") or [item for item in report.get("lint") or []
+                                                   if isinstance(item, dict) and not item.get("passed")]
+        if missing:
+            detail = f"missing {missing[0]}"
+        elif report.get("config_error"):
+            detail = str(report["config_error"])
+        elif failures:
+            item = failures[0]
+            detail = item.get("label", str(item)) if isinstance(item, dict) else str(item)
+    except (json.JSONDecodeError, AttributeError):
+        detail = first_line(stderr) or first_line(stdout)
+    return f"check-project-harness.py fails: {detail or f'exit {code}'}"
+
+
+def budget_problem() -> str | None:
+    outcome = run_check("check-startup-doc-budget.py", "--root", str(ROOT), "--strict")
+    if outcome is None or outcome[0] == 0:
+        return None
+    code, stdout, stderr = outcome
+    detail = first_line(stderr, "动作", "exceeded=true", "over_limit=true") or f"exit {code}"
+    return f"startup files over budget (check-startup-doc-budget.py --strict): {detail}"
+
+
+def pending_problem() -> str | None:
+    outcome = run_check("harness_log.py", "pending")
+    # Exit 1 means open intents; an older ledger script without `pending` exits 2 and is skipped.
+    if outcome is None or outcome[0] != 1:
+        return None
+    code, stdout, _ = outcome
+    entry = first_line(stdout, "seq ")
+    return (f"open ledger intent: {entry or f'exit {code}'} -- verify it in the external system, then "
+            f"close it with harness_log.py append --type <milestone|incident> --closes <seq>")
+
+
+def check_stop(payload: dict) -> int:
+    if payload.get("stop_hook_active"):
+        return EXIT_ALLOW
+    problems = [problem for problem in (harness_check_problem(), budget_problem(), pending_problem()) if problem]
+    if not problems:
+        return EXIT_ALLOW
+    return block(*problems)
+
+
+def staged_ledger_rewrite() -> bool:
+    try:
+        result = subprocess.run(["git", "diff", "--cached", "-U0", "--no-color", "--", LEDGER_SUFFIX], cwd=ROOT,
+                                capture_output=True, encoding="utf-8", errors="replace",
+                                timeout=CHECK_TIMEOUT_SECONDS)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return any(line.startswith("-") and not line.startswith("---") for line in result.stdout.splitlines())
+
+
+def git_pre_commit() -> int:
+    problems = [harness_check_problem(), budget_problem()]
+    if staged_ledger_rewrite():
+        problems.insert(0, "staged change removes or rewrites lines of .harness/history/log.jsonl; the ledger is "
+                           "append-only (restore it and append through scripts/harness_log.py)")
+    problems = [problem for problem in problems if problem]
+    if not problems:
+        return EXIT_ALLOW
+    for line in problems[:MAX_LINES]:
+        print(f"harness pre-commit: {line}", file=sys.stderr)
+    return 1
+
+
+def main(argv: list[str]) -> int:
+    config = load_config()
+    spec = config.get("hooks")
+    if isinstance(spec, dict) and spec.get("enabled") is False:
+        return EXIT_ALLOW
+    if "--git-pre-commit" in argv:
+        return git_pre_commit()
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        return EXIT_ALLOW
+    if not isinstance(payload, dict):
+        return EXIT_ALLOW
+    event = payload.get("hook_event_name")
+    tool = payload.get("tool_name")
+    if event == "PreToolUse" and tool in ("Edit", "Write", "MultiEdit"):
+        return check_file_tool(payload, config)
+    if event == "PreToolUse" and tool in ("Bash", "PowerShell"):
+        return check_shell(payload, config)
+    if event == "PostToolUse" and tool in ("Bash", "PowerShell"):
+        return check_after_shell(payload, config)
+    if event == "Stop":
+        return check_stop(payload)
+    return EXIT_ALLOW
+
+
+if __name__ == "__main__":
+    ensure_utf8_stdio()
+    raise SystemExit(main(sys.argv[1:]))

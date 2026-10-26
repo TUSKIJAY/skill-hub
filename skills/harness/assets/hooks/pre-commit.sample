@@ -1,0 +1,4 @@
+#!/bin/sh
+# Optional harness pre-commit hook for CLIs without Claude Code hooks. Save as .git/hooks/pre-commit
+# and make it executable; Git runs it from the repository root (Git Bash on Windows).
+exec {{PYTHON}} scripts/harness_hook.py --git-pre-commit

@@ -1,0 +1,14 @@
+# Progress Archive Index
+
+本目录只保存**长篇散文证据**：postmortem、评审记录、阶段总结等无法压成账本单行的文档。事件级历史（里程碑、验证、交接、决策事件）一律进账本 `.harness/history/log.jsonl`，经 `{{PYTHON}} scripts/harness_log.py append` 写入；账本条目通过 `--refs` 指向本目录中的长文。会约束后续 phase 或后续计划的取舍不止于账本，还要在 `docs/decisions/index.md` 登记一行。归档不改变当前状态，也不授予任何计划权限。
+
+| Topic | Source coverage | Archive path | Ledger refs |
+| --- | --- | --- | --- |
+| None | — | — | — |
+
+## Archive Rules
+
+- 事件历史（一行能说清的）不进本目录：直接 `harness_log.py append`；`PROGRESS.md` 超预算迁移走同一条路。
+- 只有确需长篇保存的证据文档才落入 `docs/progress-archive/<topic>.md`，同时在本索引登记一行，并追加一条账本条目以 `--refs` 指向它。
+- 保存原始事实、日期和证据路径，不把归档摘要当作当前真相。
+- `HANDOFF.md` 是整体覆盖重写的交接包，本身不产生历史；交接事件由账本的 `handoff` 条目记录。

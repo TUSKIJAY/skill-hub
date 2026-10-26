@@ -1,0 +1,18 @@
+# Spec — <Area>
+
+- Status: Living
+- Source PRD: <prd-slug 或 none>
+- Updated: YYYY-MM-DD
+
+## Rules
+
+- proposed 条目允许写到字段级或元素级，因为它已标明尚未确定；计划正文里被 Depth ceiling 挡回的字段级契约，落地后的去处就是这里。
+- 条目转为 settled 必须填写 Verification 列，内容是具体测试名、可执行命令，或含输入/步骤/预期结果/证据位置的人工核验流程；「已手工确认」一类无法复跑的描述不算验证指针，该条目仍是 proposed。
+- 实现选择不进本文件。本文件只写外部可观察的行为；用哪个库、怎么分层、内部数据结构由计划正文或 `../decisions/` 承担。
+- phase 边界同步本文件时，跑本 phase 触及的 settled 条目的 Verification。失败记为该 phase 验收的 blocking 项，解除条件四选一：修产物/实现、修核验流程/测试、更新本条目并在 Source 注明依据来源、或按 `../decisions/index.md` 的登记条件记一条决策说明契约为何改变。其中修产物/实现与修核验流程/测试属 active plan 已授权范围内的普通工作，执行 agent 可直接做；更新本条目或登记一条决策属于改动意图，须决策者认可，该认可可与本 phase 的验收在同一次答复中给出。解除后在同一 phase 的检查中恢复通过，不追加确认轮次。
+
+## Contracts
+
+| ID | Contract | Status | Verification | Source |
+| --- | --- | --- | --- | --- |
+| S-001 | <行为描述> | proposed | — | <PRD §n 或 plan slug> |

@@ -65,6 +65,8 @@ CONTEXT_BUDGET_TITLES = ("context budget", "上下文预算")
 INTENT_TERMS = [("--type intent",)]
 # The Hard Rules bullet that gates expensive, irreversible or do_not-named actions on resume.
 GATE_TERMS = [("恢复前闸门",)]
+# The roadmap Lifecycle step that offers the user a walkthrough after an approve verdict and before activation.
+WALKTHROUGH_TERMS = [("人类讲解评审",)]
 
 
 def has_context_budget_section(text: str) -> bool:
@@ -145,6 +147,14 @@ def gate_warnings(root: Path, agents: str) -> list[str]:
     """Unscored for now: installs made before the pre-resume gate existed must not lose points."""
     if present(root, "AGENTS.md") and not contains_all(agents, GATE_TERMS):
         return ["AGENTS.md 缺恢复前闸门规则（昂贵/不可逆/do_not 点名的动作先问用户）；从合并提示补上"]
+    return []
+
+
+def walkthrough_warnings(root: Path) -> list[str]:
+    """Unscored for now: installs made before the plan walkthrough gate existed must not lose points."""
+    roadmap = "docs/exec-plans/roadmap.md"
+    if present(root, roadmap) and not contains_all(read_text_or_empty(root / roadmap), WALKTHROUGH_TERMS):
+        return ["docs/exec-plans/roadmap.md 缺人类讲解评审步骤（评审通过后、激活前先问用户要不要听讲解）；从合并提示补上"]
     return []
 
 

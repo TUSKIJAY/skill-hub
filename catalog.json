@@ -431,7 +431,7 @@
       "origin": {
         "kind": "local-snapshot",
         "location": "~/.agents/skills/harness",
-        "captured_at": "2026-10-26",
+        "captured_at": "2026-10-29",
         "upstream": null,
         "license": "not-yet-recorded"
       },
@@ -451,7 +451,7 @@
       "origin": {
         "kind": "local-snapshot",
         "location": "~/.agents/skills/readable-docs",
-        "captured_at": "2026-10-26",
+        "captured_at": "2026-10-29",
         "upstream": null,
         "license": "See NOTICE.md for adapted MIT portions"
       },

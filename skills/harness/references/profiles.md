@@ -51,9 +51,9 @@ The lifecycle is tiered. Task triage in `AGENTS.md` decides which tier applies:
 - **Lightweight plan** — medium work planned inline in chat; execution starts immediately. Durable next-step intent belongs in `HANDOFF.md`, never facts-only `PROGRESS.md`.
 - **Governed lifecycle** — only for multi-session, irreversible, safety-sensitive, or explicitly requested formal work:
 
-  `optimization intake -> proposed plan -> review + approval (grantable in one user reply) -> active plan -> phased implementation and verification -> completed plan`
+  `optimization intake -> proposed plan -> agent review -> walkthrough offer (hear it or skip it) -> approval (grantable in one user reply) -> active plan -> phased implementation and verification -> completed plan`
 
-Review confirmation and activation may be granted together in a single explicit user reply; never add extra confirmation rounds for ceremony. Routing small tasks into the governed lifecycle is as much a defect as skipping the lifecycle for large ones.
+Review confirmation and activation may be granted together in a single explicit user reply, given after the walkthrough offer; never add extra confirmation rounds for ceremony. Routing small tasks into the governed lifecycle is as much a defect as skipping the lifecycle for large ones.
 
 ## Task Cards (opt-in component)
 

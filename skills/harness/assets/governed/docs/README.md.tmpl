@@ -45,6 +45,7 @@
 - 只有用户明确要求转化的范围才能起草到 `exec-plans/proposed/`。
 - 计划含会约束后续 phase 或后续计划的取舍时，写进计划的 `## Decisions` 段并在 `decisions/index.md` 登记一行；仅当取舍跨多个计划、在计划之外产生、或要推翻已 Accepted 的旧决策时才在 `decisions/` 建独立文件。
 - proposed 计划与 review 文件本身都不授权实施。
+- 评审结论为 approve、计划移入 `active/` 之前，agent 先问用户要不要听一遍讲解，问句附摘要和待拍板项。用户要听就按 readable-docs 的计划讲解规则逐段讲，也可以跳过直接批准。用户答复之前，评审结论和 agent 之间的共识都不算决定，修订稿不提交。用户主动要求讲解某个计划时，随时讲。
 - 用户的一次明确批准可同时覆盖 review 确认与激活；获批后计划移动到 `active/` 并立即可执行，不追加确认轮次。
 - 完成、终止、拒绝或被取代的计划移动到 `completed/`；review 历史保留。
 - 事件历史经 `scripts/harness_log.py append` 进账本；仅长篇证据文档进入 `progress-archive/` 并保留索引与账本 refs。不得让启动文档无限增长。

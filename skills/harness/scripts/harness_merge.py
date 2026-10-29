@@ -14,7 +14,13 @@ from typing import Any
 import json
 import re
 
-from harness_checks import acceptance_declared, agents_requirements, contains_all, has_context_budget_section
+from harness_checks import (
+    WALKTHROUGH_TERMS,
+    acceptance_declared,
+    agents_requirements,
+    contains_all,
+    has_context_budget_section,
+)
 from harness_portability import read_json_file, read_text_or_empty
 from harness_templates import (
     FRAGMENTS_ROOT,
@@ -65,6 +71,11 @@ CLAUDE_POINTER_LINE = "本项目的指令入口是 @AGENTS.md，先读它；本�
 # The Hard Rules bullet of the AGENTS.md template that gates expensive, irreversible or do_not-named actions on
 # resume; no tokens. A regression test keeps template, fragment and this constant equal.
 AGENTS_GATE_SENTENCE = ('恢复前闸门：接手或续接时，昂贵（长时间运行、占用大量算力或配额）、不可逆、或 `HANDOFF.md` `do_not` 点名的动作，动手前必须向用户出示要做什么、预计成本、现有产物或状态为何不够，等用户确认后再做；不得因为「上次的任务已不在」「时间过去很久」或「状态文件过期」就自行解除 `do_not`，它只由用户解除。确认前只核实和报告，不启动后台进程、不建计划任务、不把状态改写成进行中。')
+# The Lifecycle step of the exec-plans roadmap template that offers the user a walkthrough after an approve verdict
+# and before activation, without its list number (the template line is "5. " + this); no tokens. A regression
+# test keeps template and constant equal. Rendered as the hint when an existing roadmap.md lacks it.
+ROADMAP_WALKTHROUGH_STEP = ('人类讲解评审：评审结论为 approve、下一步要把计划移入 `active/` 时，agent 先问用户要不要听一遍讲解。问句附计划摘要（要做什么、为什么、改哪些、风险、要用户决定什么）和每个待拍板项的一句话加建议。用户要听，就按 readable-docs 的计划讲解规则逐段讲，每块问一个具体问题；agent 互评或修订后的版本要讲清改了什么、哪些评审意见采纳了、哪些没有。用户也可以跳过，直接批准交给 agent 执行、验收时看结果，或者只回答待拍板项。用户答复之前，评审结论和 agent 之间的共识都不算决定，修订稿不提交，计划不进入 `active/`；没有答复不等于跳过。用户在任何时候要求讲解某个计划，都按同样的方式讲。询问和讲解是批准之前的评审本身，不是批准之后的额外确认轮次，用户的一次答复仍可同时覆盖 review 确认与激活。')
+ROADMAP_WALKTHROUGH_LABEL = "Plan walkthrough step (人类讲解评审) in the roadmap Lifecycle"
 # Parts of the current scripts/harness_log.py, each found by a name the template defines.
 LEDGER_SCRIPT_PARTS = (
     ("`intent` entry type, `--closes <seq>` on append and the `pending` subcommand (cmd_pending)", "cmd_pending"),
@@ -328,6 +339,16 @@ def core_manual_merge(target: Path, plan: list[dict[str, str]], is_git: bool,
                         "JSON string where it says {{PYTHON_JSON}}); otherwise merge the listed parts by hand and keep "
                         "the project's own numbers (references/migration-rules.md, Adding The Context Budget).",
             })
+    roadmap = "docs/exec-plans/roadmap.md"
+    if roadmap in skipped and not contains_all(text(roadmap), WALKTHROUGH_TERMS):
+        hints.append({
+            "path": roadmap, "kind": "state",
+            "missing": [ROADMAP_WALKTHROUGH_LABEL],
+            "snippet": ROADMAP_WALKTHROUGH_STEP + "\n",
+            "note": "Paste the snippet into the Lifecycle as a numbered step after the review-budget step and "
+                    "before the step that moves an approved plan to active/, then renumber the later steps; "
+                    "keep the project's own wording elsewhere.",
+        })
     if hints:
         merged = {hint["path"] for hint in hints}
         for manifest in checksum_manifests(target):

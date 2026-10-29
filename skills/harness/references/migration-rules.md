@@ -115,11 +115,21 @@ The installer only adds missing paths: re-running it adds `CLAUDE.md` when the p
 - `scripts/check-project-harness.py`: merge `lint_entry_pointer` (a `CLAUDE.md` that exists must mention `AGENTS.md`).
 - Re-run the preview, `validate_harness.py` and the project check, then record the merge as a `milestone` ledger entry.
 
+## Adding The Plan Walkthrough Gate To An Installed Harness
+
+The installer only adds missing paths, so a governed project installed before this gate existed gets it by a narrow manual merge. Re-run the apply preview with the installed profile: when `docs/exec-plans/roadmap.md` lacks the gate, `manual_merge` lists it with the paste-ready lifecycle step, and `validate_harness.py` reports the gap as an unscored warning.
+
+- `docs/exec-plans/roadmap.md`: paste the step after the review-budget step and before "经用户批准后，计划移动到 `active/`"; renumber the later steps.
+- `docs/README.md` Placement Rules, `docs/exec-plans/reviews/index.md`, `docs/exec-plans/reviews/review-template.md` and `docs/optimization/SOP.md`: the matching sentences from the templates. `docs/exec-plans/plan-template.md`: the "Walkthrough offer" line in the Review And Activation Gate section. Existing plans are not rewritten.
+- The project's `readable-docs` rule card supplies the "how" (its `upgrade` mode brings the new card item); this skill only sets when the offer is mandatory.
+- Keep the project's existing review budget and approval wording; re-run `validate_harness.py` and record the merge as a `milestone` ledger entry.
+
 ## Authority Rules
 
 - A clearly scoped user request is itself the approval for direct-execute and lightweight work; do not route small tasks through the plan lifecycle or ask again.
 - A draft plan is not approval.
 - A single explicit user reply may grant review confirmation and activation together; do not add extra confirmation rounds beyond what the user's reply already covers.
+- Agreement between agents is not a decision. After an approve verdict the agent offers the user a walkthrough (readable-docs plan-walkthrough rules) before activation; the user may hear it or skip it, and the revised plan is neither committed nor activated until the user answers. A user may ask for a walkthrough of any plan at any time.
 - An optimization record is not a plan.
 - A completed phase does not authorize the next phase when a gate is required; phases may be merged only when the plan declares it, never silently.
 - Historical evidence does not override current state.

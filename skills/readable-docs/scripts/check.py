@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-CHECK_VERSION = "0.1.1"
+CHECK_VERSION = "0.1.2"
 SCHEMA_VERSION = "readable-docs-check-v1"
 CONFIG_SCHEMA = "readable-docs-config-v1"
 CONFIG_CANDIDATES = (".harness/readable-docs.json", "readable-docs.json")

@@ -21,6 +21,7 @@ from harness_checks import (
     state_checks,
     task_cards_state,
     verification_checks,
+    walkthrough_warnings,
 )
 from harness_checks_optional import governance_checks, hooks_checks, hooks_enabled, task_cards_checks
 from harness_common import PROFILES, dump_json, git_state, resolve_target
@@ -79,7 +80,7 @@ def calibration_warnings(root: Path) -> list[str]:
         warnings.append("INSTRUCTIONS.md Use Contract still has the installer placeholder for the workflow entry; "
                         "wire the real entry (or pass --workflow-entry) during calibration")
     return (warnings + context_budget_warnings(root, instructions) + intent_warnings(root, agents)
-            + gate_warnings(root, agents) + entry_pointer_warnings(root))
+            + gate_warnings(root, agents) + walkthrough_warnings(root) + entry_pointer_warnings(root))
 
 
 def score(root: Path, profile: str) -> dict[str, Any]:

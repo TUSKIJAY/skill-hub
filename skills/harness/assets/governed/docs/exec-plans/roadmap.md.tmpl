@@ -16,16 +16,17 @@
 2. 用户明确要求转化的范围起草为 `proposed/` 计划；已启用 PRD 层时，可引用标记 Accepted 的 PRD 作为 Source evidence。计划含会约束后续 phase 或后续计划的取舍时，写进计划的 `## Decisions` 段并在 `docs/decisions/index.md` 登记一行。
 3. proposed 计划需要 review；review 确认与 activation 可在用户的同一次答复中一并授予——用户说「批准并执行」即同时完成两者，不得为流程追加额外确认轮次。
 4. 评审默认最多两轮；项目可按风险改写预算，但须注明适用范围与退出条件。到限仍有未闭合的阻断项时停止修订循环：属「计划写得太细」的，按 plan-template 的 Depth ceiling 回退到行为级条目；属「方向不确定」的，在已有授权内做受限实验取得事实后再重写，或提交决策者裁定。停止不等于通过，不得为取得批准自行续轮。
-5. 经用户批准后，计划移动到 `active/` 并可立即开始实施，无需再次请示。
-6. active 计划按 phase 执行；小计划可在计划内注明后合并 phase。
-7. 在 phase 边界和会话结束前记录验证证据、同步 `PROGRESS.md` 与 `HANDOFF.md` 及受影响的 SPEC 条目（已启用 PRD/SPEC 层时同步 `docs/specs/`；未启用为 no-op），并按项目既有方式保存可恢复版本（Git 项目才按规则形成 scoped commit）。
-8. 全部范围完成、验证和收尾后，计划移动到 `completed/`。
+5. 人类讲解评审：评审结论为 approve、下一步要把计划移入 `active/` 时，agent 先问用户要不要听一遍讲解。问句附计划摘要（要做什么、为什么、改哪些、风险、要用户决定什么）和每个待拍板项的一句话加建议。用户要听，就按 readable-docs 的计划讲解规则逐段讲，每块问一个具体问题；agent 互评或修订后的版本要讲清改了什么、哪些评审意见采纳了、哪些没有。用户也可以跳过，直接批准交给 agent 执行、验收时看结果，或者只回答待拍板项。用户答复之前，评审结论和 agent 之间的共识都不算决定，修订稿不提交，计划不进入 `active/`；没有答复不等于跳过。用户在任何时候要求讲解某个计划，都按同样的方式讲。询问和讲解是批准之前的评审本身，不是批准之后的额外确认轮次，用户的一次答复仍可同时覆盖 review 确认与激活。
+6. 经用户批准后，计划移动到 `active/` 并可立即开始实施，无需再次请示。
+7. active 计划按 phase 执行；小计划可在计划内注明后合并 phase。
+8. 在 phase 边界和会话结束前记录验证证据、同步 `PROGRESS.md` 与 `HANDOFF.md` 及受影响的 SPEC 条目（已启用 PRD/SPEC 层时同步 `docs/specs/`；未启用为 no-op），并按项目既有方式保存可恢复版本（Git 项目才按规则形成 scoped commit）。
+9. 全部范围完成、验证和收尾后，计划移动到 `completed/`。
 
 `proposed`、`active`、`completed` 与 `review` 是不同状态；状态转换需要用户认可，但用户的一次明确认可可以同时覆盖多个转换。
 
 ## Directory Rules
 
-- `proposed/`：草案计划，等待用户批准。
+- `proposed/`：草案计划，等待讲解询问和用户批准。
 - `active/`：已获用户批准、当前可执行的计划。
 - `completed/`：已完成、终止、拒绝、被取代或归档的计划。计划被拒绝或终止时，把 `docs/decisions/index.md` 中 Location 指向它的决策 Status 改为 Void；计划被取代时改为 Superseded 并指向取代它的决策。
 - `reviews/`：按计划 slug 保存评审和实施验收；仅在需要独立评审时创建。

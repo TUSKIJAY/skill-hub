@@ -1,6 +1,6 @@
 # Exec Plan Reviews
 
-Keep reviews under `reviews/<plan-slug>/review-001.md`, `review-002.md`, and so on. A review verdict does not by itself activate a plan.
+Keep reviews under `reviews/<plan-slug>/review-001.md`, `review-002.md`, and so on. A review verdict does not by itself activate a plan, and agreement between agents is not a decision: after an approve verdict the agent asks the user whether to hear a walkthrough (readable-docs plan-walkthrough rules) before activation. The user may hear it or skip it; until the user answers, the revised plan is neither committed nor activated.
 
 | Plan | Reviews | Latest verdict | Lifecycle state |
 | --- | --- | --- | --- |
